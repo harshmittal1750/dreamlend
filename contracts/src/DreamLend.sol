@@ -49,6 +49,9 @@ contract DreamLend is ReentrancyGuard {
 
     // Array to efficiently query open loan offers
     uint256[] public activeLoanOfferIds;
+    
+    // Mapping to track position of loan ID in activeLoanOfferIds array for O(1) removal
+    mapping(uint256 => uint256) private activeLoanOfferIndex;
 
     // ============ Events ============
 
@@ -81,6 +84,17 @@ contract DreamLend is ReentrancyGuard {
         address indexed liquidator,
         uint256 collateralClaimed,
         uint256 timestamp
+    );
+
+    event LoanOfferCancelled(
+        uint256 indexed loanId,
+        address indexed lender,
+        uint256 timestamp
+    );
+
+    event LoanOfferRemoved(
+        uint256 indexed loanId,
+        string reason
     );
 
     // ============ Constructor ============
@@ -150,6 +164,9 @@ contract DreamLend is ReentrancyGuard {
 
         // Add to active loan offers
         activeLoanOfferIds.push(currentLoanId);
+        
+        // Track position in activeLoanOfferIds for O(1) removal
+        activeLoanOfferIndex[currentLoanId] = activeLoanOfferIds.length - 1;
 
         // Update lender's loan mapping
         lenderLoans[msg.sender].push(currentLoanId);
@@ -165,6 +182,29 @@ contract DreamLend is ReentrancyGuard {
             _collateralAddress,
             _collateralAmount
         );
+    }
+
+    /**
+     * @notice Cancels a pending loan offer and returns funds to lender
+     * @param loanId The ID of the loan offer to cancel
+     */
+    function cancelLoanOffer(uint256 loanId) external nonReentrant {
+        // Verify loan exists and is in pending status
+        Loan storage loan = loans[loanId];
+        require(loan.status == LoanStatus.Pending, "Loan is not pending");
+        require(msg.sender == loan.lender, "Only lender can cancel");
+
+        // Return escrowed funds to lender
+        IERC20(loan.tokenAddress).safeTransfer(loan.lender, loan.amount);
+
+        // Update loan status
+        loan.status = LoanStatus.Defaulted; // Reusing Defaulted status for cancelled loans
+
+        // Remove from active loan offers
+        _removeLoanFromActiveOffers(loanId);
+
+        // Emit event
+        emit LoanOfferCancelled(loanId, msg.sender, block.timestamp);
     }
 
     /**
@@ -214,10 +254,14 @@ contract DreamLend is ReentrancyGuard {
         require(loan.status == LoanStatus.Active, "Loan is not active");
         require(msg.sender == loan.borrower, "Only borrower can repay");
 
-        // Calculate interest based on time elapsed
+        // Calculate interest based on time elapsed with improved precision
         uint256 timeElapsed = block.timestamp - loan.startTime;
+        
+        // Use 365.25 days for more accurate year calculation (accounting for leap years)
+        // Formula: interest = principal * rate * time / (basis_points * seconds_per_year)
         uint256 interest = (loan.amount * loan.interestRate * timeElapsed) /
-            (10000 * 365 days);
+            (10000 * 31557600); // 365.25 * 24 * 60 * 60 = 31557600 seconds per year
+        
         uint256 totalRepayment = loan.amount + interest;
 
         // Transfer repayment from borrower to lender
@@ -241,7 +285,7 @@ contract DreamLend is ReentrancyGuard {
     }
 
     /**
-     * @notice Liquidates a defaulted loan
+     * @notice Liquidates a defaulted loan (can be called by anyone after default)
      * @param loanId The ID of the loan to liquidate
      */
     function liquidateLoan(uint256 loanId) external nonReentrant {
@@ -249,7 +293,6 @@ contract DreamLend is ReentrancyGuard {
         Loan storage loan = loans[loanId];
         require(loan.id != 0, "Loan does not exist");
         require(loan.status == LoanStatus.Active, "Loan is not active");
-        require(msg.sender == loan.lender, "Only lender can liquidate");
 
         // Check if loan has defaulted (past due date)
         require(
@@ -257,7 +300,8 @@ contract DreamLend is ReentrancyGuard {
             "Loan has not defaulted yet"
         );
 
-        // Transfer collateral to lender
+        // Transfer collateral to lender (not to liquidator)
+        // This protects the lender's rights while allowing public liquidation
         IERC20(loan.collateralAddress).safeTransfer(
             loan.lender,
             loan.collateralAmount
@@ -316,23 +360,88 @@ contract DreamLend is ReentrancyGuard {
         return borrowerLoans[borrower];
     }
 
+    // ============ View Functions (Additional) ============
+
+    /**
+     * @notice Checks if a loan exists
+     * @param loanId The loan ID to check
+     * @return True if the loan exists, false otherwise
+     */
+    function loanExists(uint256 loanId) external view returns (bool) {
+        return loans[loanId].id != 0;
+    }
+
+    /**
+     * @notice Calculates the current interest for an active loan
+     * @param loanId The loan ID to calculate interest for
+     * @return The current interest amount
+     */
+    function calculateCurrentInterest(uint256 loanId) external view returns (uint256) {
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        require(loan.status == LoanStatus.Active, "Loan is not active");
+        
+        uint256 timeElapsed = block.timestamp - loan.startTime;
+        return (loan.amount * loan.interestRate * timeElapsed) / (10000 * 31557600);
+    }
+
+    /**
+     * @notice Calculates the total repayment amount for an active loan
+     * @param loanId The loan ID to calculate repayment for
+     * @return The total repayment amount (principal + interest)
+     */
+    function calculateTotalRepayment(uint256 loanId) external view returns (uint256) {
+        uint256 interest = this.calculateCurrentInterest(loanId);
+        return loans[loanId].amount + interest;
+    }
+
+    /**
+     * @notice Checks if a loan has defaulted (past due date)
+     * @param loanId The loan ID to check
+     * @return True if the loan has defaulted, false otherwise
+     */
+    function isLoanDefaulted(uint256 loanId) external view returns (bool) {
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        
+        if (loan.status != LoanStatus.Active) {
+            return false;
+        }
+        
+        return block.timestamp > loan.startTime + loan.duration;
+    }
+
     // ============ Internal Functions ============
 
     /**
-     * @notice Removes a loan ID from the activeLoanOfferIds array using swap and pop for gas efficiency
+     * @notice Removes a loan ID from the activeLoanOfferIds array in O(1) time
      * @param loanId The loan ID to remove
      */
     function _removeLoanFromActiveOffers(uint256 loanId) internal {
         uint256 length = activeLoanOfferIds.length;
+        if (length == 0) return;
 
-        // Find the index of the loan ID
-        for (uint256 i = 0; i < length; i++) {
-            if (activeLoanOfferIds[i] == loanId) {
-                // Swap with last element and pop
-                activeLoanOfferIds[i] = activeLoanOfferIds[length - 1];
-                activeLoanOfferIds.pop();
-                break;
+        // Get the index of the loan ID to remove
+        uint256 indexToRemove = activeLoanOfferIndex[loanId];
+        
+        // Ensure the loan ID is actually in the array
+        if (indexToRemove < length && activeLoanOfferIds[indexToRemove] == loanId) {
+            // If not the last element, swap with last element
+            if (indexToRemove != length - 1) {
+                uint256 lastLoanId = activeLoanOfferIds[length - 1];
+                activeLoanOfferIds[indexToRemove] = lastLoanId;
+                // Update the index mapping for the moved element
+                activeLoanOfferIndex[lastLoanId] = indexToRemove;
             }
+            
+            // Remove the last element
+            activeLoanOfferIds.pop();
+            
+            // Clean up the mapping
+            delete activeLoanOfferIndex[loanId];
+            
+            // Emit event
+            emit LoanOfferRemoved(loanId, "Loan accepted or cancelled");
         }
     }
 }
