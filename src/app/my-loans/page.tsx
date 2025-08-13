@@ -112,6 +112,7 @@ export default function MyLoansPage() {
     isLoadingBorrowerLoans,
     repayLoan,
     liquidateLoan,
+    cancelLoanOffer,
     transactionState,
     resetTransactionState,
     isConnected,
@@ -131,7 +132,7 @@ export default function MyLoansPage() {
   >([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
-  const [actionType, setActionType] = useState<"repay" | "liquidate" | null>(
+  const [actionType, setActionType] = useState<"repay" | "liquidate" | "cancel" | null>(
     null
   );
 
@@ -341,6 +342,31 @@ export default function MyLoansPage() {
     }
   };
 
+  const handleCancelLoan = async (loan: LoanWithDetails) => {
+    if (!address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    if (loan.status !== LoanStatus.Pending) {
+      alert("Only pending loan offers can be cancelled");
+      return;
+    }
+
+    try {
+      setSelectedLoanId(loan.id);
+      setActionType("cancel");
+      await cancelLoanOffer(loan.id);
+      // Refresh the loan data after successful cancellation
+      await refetchLenderLoans();
+    } catch (error) {
+      console.error("Failed to cancel loan offer:", error);
+    } finally {
+      setSelectedLoanId(null);
+      setActionType(null);
+    }
+  };
+
   const getActionButton = (
     loan: LoanWithDetails,
     userRole: "lender" | "borrower"
@@ -365,6 +391,25 @@ export default function MyLoansPage() {
               ? "Approving..."
               : "Repaying..."
             : "Repay Loan"}
+        </Button>
+      );
+    }
+
+    // Lender can cancel pending offers
+    if (userRole === "lender" && loan.status === LoanStatus.Pending) {
+      return (
+        <Button
+          size="sm"
+          onClick={() => handleCancelLoan(loan)}
+          disabled={isLoading || (selectedLoanId !== null && !isCurrentLoan)}
+          variant="destructive"
+        >
+          {isLoading && actionType === "cancel" && (
+            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+          )}
+          {isLoading && actionType === "cancel" && isCurrentLoan
+            ? "Cancelling..."
+            : "Cancel Offer"}
         </Button>
       );
     }

@@ -27,6 +27,7 @@ export interface TransactionState {
     | "accepting"
     | "repaying"
     | "liquidating"
+    | "cancelling"
     | "success"
     | "error";
 }
@@ -537,6 +538,54 @@ export const useP2PLending = () => {
     [address, getWriteContract, fetchLenderLoans]
   );
 
+  // Cancel loan offer
+  const cancelLoanOffer = useCallback(
+    async (loanId: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "cancelling",
+        });
+
+        const contract = await getWriteContract();
+        const tx = await contract.cancelLoanOffer(loanId);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchActiveLoanOffers();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to cancel loan offer",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getWriteContract, fetchActiveLoanOffers, fetchLenderLoans]
+  );
+
   // ============ UTILITY FUNCTIONS ============
 
   // Calculate interest for a loan
@@ -631,6 +680,7 @@ export const useP2PLending = () => {
     acceptLoanOffer,
     repayLoan,
     liquidateLoan,
+    cancelLoanOffer,
     approveToken,
 
     // Utility functions

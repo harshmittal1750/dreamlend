@@ -107,6 +107,7 @@ export default function OffersPage() {
     activeLoanOfferIds,
     isLoadingOffers,
     acceptLoanOffer,
+    cancelLoanOffer,
     transactionState,
     resetTransactionState,
     isConnected,
@@ -219,6 +220,29 @@ export default function OffersPage() {
       await refetchOffers();
     } catch (error) {
       console.error("Failed to accept loan offer:", error);
+    } finally {
+      setSelectedLoanId(null);
+    }
+  };
+
+  const handleCancelOffer = async (loan: LoanOfferWithDetails) => {
+    if (!address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    if (loan.lender.toLowerCase() !== address.toLowerCase()) {
+      alert("You can only cancel your own loan offers");
+      return;
+    }
+
+    try {
+      setSelectedLoanId(loan.id);
+      await cancelLoanOffer(loan.id);
+      // Refresh the offers after successful cancellation
+      await refetchOffers();
+    } catch (error) {
+      console.error("Failed to cancel loan offer:", error);
     } finally {
       setSelectedLoanId(null);
     }
@@ -516,7 +540,30 @@ export default function OffersPage() {
                       <TableCell>
                         {loan.lender.toLowerCase() ===
                         address?.toLowerCase() ? (
-                          <Badge variant="outline">Your Offer</Badge>
+                          <div className="space-y-2">
+                            <Badge variant="outline">Your Offer</Badge>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleCancelOffer(loan)}
+                              disabled={
+                                transactionState.isLoading ||
+                                loan.status !== LoanStatus.Pending ||
+                                (selectedLoanId !== null &&
+                                  selectedLoanId !== loan.id)
+                              }
+                              className="w-full"
+                            >
+                              {transactionState.isLoading &&
+                                selectedLoanId === loan.id && (
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                )}
+                              {transactionState.step === "cancelling" &&
+                              selectedLoanId === loan.id
+                                ? "Cancelling..."
+                                : "Cancel Offer"}
+                            </Button>
+                          </div>
                         ) : (
                           <Button
                             size="sm"
