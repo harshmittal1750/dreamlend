@@ -1,0 +1,648 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { Eip1193Provider, ethers } from "ethers";
+import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
+import {
+  DREAMLEND_CONTRACT_ADDRESS,
+  DREAMLEND_ABI,
+  ERC20_ABI,
+  Loan,
+  LoanStatus,
+  CreateLoanOfferParams,
+  SOMNIA_TESTNET_CONFIG,
+} from "@/lib/contracts";
+
+export interface TransactionState {
+  isLoading: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  error: string | null;
+  hash: string | null;
+  step:
+    | "idle"
+    | "approving"
+    | "approved"
+    | "creating"
+    | "accepting"
+    | "repaying"
+    | "liquidating"
+    | "success"
+    | "error";
+}
+
+export interface LoanOfferFormData {
+  tokenAddress: string;
+  amount: string;
+  interestRate: string;
+  duration: string;
+  collateralAddress: string;
+  collateralAmount: string;
+}
+
+export const useP2PLending = () => {
+  const { address, isConnected } = useAppKitAccount();
+  const { walletProvider } = useAppKitProvider<Eip1193Provider>("eip155");
+
+  // State management
+  const [transactionState, setTransactionState] = useState<TransactionState>({
+    isLoading: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+    hash: null,
+    step: "idle",
+  });
+
+  const [activeLoanOfferIds, setActiveLoanOfferIds] = useState<bigint[]>();
+  const [lenderLoans, setLenderLoans] = useState<bigint[]>();
+  const [borrowerLoans, setBorrowerLoans] = useState<bigint[]>();
+  const [isLoadingOffers, setIsLoadingOffers] = useState(false);
+  const [isLoadingLenderLoans, setIsLoadingLenderLoans] = useState(false);
+  const [isLoadingBorrowerLoans, setIsLoadingBorrowerLoans] = useState(false);
+
+  // Create ethers provider and signer
+  const getProvider = useCallback(() => {
+    return new ethers.JsonRpcProvider(
+      SOMNIA_TESTNET_CONFIG.rpcUrls.default.http[0]
+    );
+  }, []);
+
+  const getSigner = useCallback(async () => {
+    if (!walletProvider) throw new Error("Wallet not connected");
+    const ethersProvider = new ethers.BrowserProvider(walletProvider);
+    return await ethersProvider.getSigner();
+  }, [walletProvider]);
+
+  // Create contract instances
+  const getReadContract = useCallback(() => {
+    const provider = getProvider();
+    return new ethers.Contract(
+      DREAMLEND_CONTRACT_ADDRESS,
+      DREAMLEND_ABI,
+      provider
+    );
+  }, [getProvider]);
+
+  const getWriteContract = useCallback(async () => {
+    const signer = await getSigner();
+    return new ethers.Contract(
+      DREAMLEND_CONTRACT_ADDRESS,
+      DREAMLEND_ABI,
+      signer
+    );
+  }, [getSigner]);
+
+  const getERC20Contract = useCallback(
+    async (tokenAddress: string, needsSigner = false) => {
+      if (needsSigner) {
+        const signer = await getSigner();
+        return new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+      } else {
+        const provider = getProvider();
+        return new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+      }
+    },
+    [getSigner, getProvider]
+  );
+
+  // Reset transaction state
+  const resetTransactionState = useCallback(() => {
+    setTransactionState({
+      isLoading: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      hash: null,
+      step: "idle",
+    });
+  }, []);
+
+  // ============ READ FUNCTIONS ============
+
+  const fetchActiveLoanOffers = useCallback(async () => {
+    try {
+      setIsLoadingOffers(true);
+      const contract = getReadContract();
+      const offers = await contract.getActiveLoanOffers();
+      setActiveLoanOfferIds(offers.map((id: any) => BigInt(id.toString())));
+    } catch (error) {
+      console.error("Error fetching active loan offers:", error);
+    } finally {
+      setIsLoadingOffers(false);
+    }
+  }, [getReadContract]);
+
+  const fetchLenderLoans = useCallback(async () => {
+    if (!address) return;
+    try {
+      setIsLoadingLenderLoans(true);
+      const contract = getReadContract();
+      const loans = await contract.getLenderLoans(address);
+      setLenderLoans(loans.map((id: any) => BigInt(id.toString())));
+    } catch (error) {
+      console.error("Error fetching lender loans:", error);
+    } finally {
+      setIsLoadingLenderLoans(false);
+    }
+  }, [address, getReadContract]);
+
+  const fetchBorrowerLoans = useCallback(async () => {
+    if (!address) return;
+    try {
+      setIsLoadingBorrowerLoans(true);
+      const contract = getReadContract();
+      const loans = await contract.getBorrowerLoans(address);
+      setBorrowerLoans(loans.map((id: any) => BigInt(id.toString())));
+    } catch (error) {
+      console.error("Error fetching borrower loans:", error);
+    } finally {
+      setIsLoadingBorrowerLoans(false);
+    }
+  }, [address, getReadContract]);
+
+  // Get loan details by ID
+  const getLoan = useCallback(
+    async (loanId: bigint): Promise<Loan | null> => {
+      try {
+        const contract = getReadContract();
+        const loan = await contract.getLoan(loanId);
+        return {
+          id: BigInt(loan.id.toString()),
+          lender: loan.lender,
+          borrower: loan.borrower,
+          tokenAddress: loan.tokenAddress,
+          amount: BigInt(loan.amount.toString()),
+          interestRate: BigInt(loan.interestRate.toString()),
+          duration: BigInt(loan.duration.toString()),
+          collateralAddress: loan.collateralAddress,
+          collateralAmount: BigInt(loan.collateralAmount.toString()),
+          startTime: BigInt(loan.startTime.toString()),
+          status: loan.status,
+        };
+      } catch (error) {
+        console.error("Error fetching loan details:", error);
+        return null;
+      }
+    },
+    [getReadContract]
+  );
+
+  // Check ERC20 allowance
+  const checkAllowance = useCallback(
+    async (
+      tokenAddress: string,
+      owner: string,
+      spender: string
+    ): Promise<bigint> => {
+      try {
+        const contract = await getERC20Contract(tokenAddress, false);
+        const allowance = await contract.allowance(owner, spender);
+        return BigInt(allowance.toString());
+      } catch (error) {
+        console.error("Error checking allowance:", error);
+        return BigInt(0);
+      }
+    },
+    [getERC20Contract]
+  );
+
+  // Check ERC20 balance
+  const checkBalance = useCallback(
+    async (tokenAddress: string, account: string): Promise<bigint> => {
+      try {
+        const contract = await getERC20Contract(tokenAddress, false);
+        const balance = await contract.balanceOf(account);
+        return BigInt(balance.toString());
+      } catch (error) {
+        console.error("Error checking balance:", error);
+        return BigInt(0);
+      }
+    },
+    [getERC20Contract]
+  );
+
+  // ============ WRITE FUNCTIONS ============
+
+  // Approve ERC20 tokens
+  const approveToken = useCallback(
+    async (tokenAddress: string, amount: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      setTransactionState({
+        isLoading: true,
+        isSuccess: false,
+        isError: false,
+        error: null,
+        hash: null,
+        step: "approving",
+      });
+
+      try {
+        const contract = await getERC20Contract(tokenAddress, true);
+        const tx = await contract.approve(DREAMLEND_CONTRACT_ADDRESS, amount);
+        await tx.wait();
+
+        setTransactionState((prev) => ({
+          ...prev,
+          hash: tx.hash,
+          step: "approved",
+          isLoading: false,
+          isSuccess: true,
+        }));
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to approve tokens",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getERC20Contract]
+  );
+
+  // Create loan offer with two-step process
+  const createLoanOffer = useCallback(
+    async (formData: LoanOfferFormData) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Convert form data to contract parameters
+        const amount = ethers.parseEther(formData.amount);
+        const interestRate = BigInt(
+          Math.floor(parseFloat(formData.interestRate) * 100)
+        ); // Convert to basis points
+        const duration = BigInt(
+          Math.floor(parseFloat(formData.duration) * 24 * 60 * 60)
+        ); // Convert days to seconds
+        const collateralAmount = ethers.parseEther(formData.collateralAmount);
+
+        // Step 1: Approve tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(formData.tokenAddress, amount);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Create loan offer
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "creating",
+        }));
+
+        const contract = await getWriteContract();
+        const tx = await contract.createLoanOffer(
+          formData.tokenAddress,
+          amount,
+          interestRate,
+          duration,
+          formData.collateralAddress,
+          collateralAmount
+        );
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchActiveLoanOffers();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to create loan offer",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchActiveLoanOffers,
+      fetchLenderLoans,
+    ]
+  );
+
+  // Accept loan offer with two-step process
+  const acceptLoanOffer = useCallback(
+    async (loanId: bigint, loan: Loan) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Step 1: Approve collateral tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(loan.collateralAddress, loan.collateralAmount);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Accept loan offer
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "accepting",
+        }));
+
+        const contract = await getWriteContract();
+        const tx = await contract.acceptLoanOffer(loanId);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchActiveLoanOffers();
+        await fetchBorrowerLoans();
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to accept loan offer",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchActiveLoanOffers,
+      fetchBorrowerLoans,
+    ]
+  );
+
+  // Repay loan with approval process
+  const repayLoan = useCallback(
+    async (loanId: bigint, loan: Loan) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Calculate total repayment amount
+        const currentTime = BigInt(Math.floor(Date.now() / 1000));
+        const timeElapsed = currentTime - loan.startTime;
+        const interest =
+          (loan.amount * loan.interestRate * timeElapsed) /
+          (BigInt(10000) * BigInt(365 * 24 * 60 * 60));
+        const totalRepayment = loan.amount + interest;
+
+        // Step 1: Approve repayment tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(loan.tokenAddress, totalRepayment);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Repay loan
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "repaying",
+        }));
+
+        const contract = await getWriteContract();
+        const tx = await contract.repayLoan(loanId);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchBorrowerLoans();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to repay loan",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchBorrowerLoans,
+      fetchLenderLoans,
+    ]
+  );
+
+  // Liquidate loan
+  const liquidateLoan = useCallback(
+    async (loanId: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "liquidating",
+        });
+
+        const contract = await getWriteContract();
+        const tx = await contract.liquidateLoan(loanId);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: any) {
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: error.message || "Failed to liquidate loan",
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getWriteContract, fetchLenderLoans]
+  );
+
+  // ============ UTILITY FUNCTIONS ============
+
+  // Calculate interest for a loan
+  const calculateInterest = useCallback((loan: Loan, currentTime?: bigint) => {
+    if (loan.status !== LoanStatus.Active) return BigInt(0);
+
+    const now = currentTime || BigInt(Math.floor(Date.now() / 1000));
+    const timeElapsed = now - loan.startTime;
+    return (
+      (loan.amount * loan.interestRate * timeElapsed) /
+      (BigInt(10000) * BigInt(365 * 24 * 60 * 60))
+    );
+  }, []);
+
+  // Calculate total repayment amount
+  const calculateTotalRepayment = useCallback(
+    (loan: Loan, currentTime?: bigint) => {
+      const interest = calculateInterest(loan, currentTime);
+      return loan.amount + interest;
+    },
+    [calculateInterest]
+  );
+
+  // Check if loan is defaulted
+  const isLoanDefaulted = useCallback((loan: Loan, currentTime?: bigint) => {
+    if (loan.status !== LoanStatus.Active) return false;
+
+    const now = currentTime || BigInt(Math.floor(Date.now() / 1000));
+    return now > loan.startTime + loan.duration;
+  }, []);
+
+  // Format loan data for display
+  const formatLoanData = useCallback(
+    (loan: Loan) => {
+      const interest = calculateInterest(loan);
+      const totalRepayment = calculateTotalRepayment(loan);
+      const isDefaulted = isLoanDefaulted(loan);
+
+      return {
+        ...loan,
+        formattedAmount: ethers.formatEther(loan.amount),
+        formattedCollateralAmount: ethers.formatEther(loan.collateralAmount),
+        formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points to percentage
+        formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+        formattedInterest: ethers.formatEther(interest),
+        formattedTotalRepayment: ethers.formatEther(totalRepayment),
+        isDefaulted,
+        statusText: ["Pending", "Active", "Repaid", "Defaulted"][loan.status],
+      };
+    },
+    [calculateInterest, calculateTotalRepayment, isLoanDefaulted]
+  );
+
+  // ============ EFFECTS ============
+
+  // Fetch data when connection state changes
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchActiveLoanOffers();
+      fetchLenderLoans();
+      fetchBorrowerLoans();
+    }
+  }, [
+    isConnected,
+    address,
+    fetchActiveLoanOffers,
+    fetchLenderLoans,
+    fetchBorrowerLoans,
+  ]);
+
+  return {
+    // State
+    transactionState,
+
+    // Account info
+    address,
+    isConnected,
+
+    // Read functions
+    activeLoanOfferIds,
+    isLoadingOffers,
+    lenderLoans,
+    isLoadingLenderLoans,
+    borrowerLoans,
+    isLoadingBorrowerLoans,
+    getLoan,
+    checkAllowance,
+    checkBalance,
+
+    // Write functions
+    createLoanOffer,
+    acceptLoanOffer,
+    repayLoan,
+    liquidateLoan,
+    approveToken,
+
+    // Utility functions
+    calculateInterest,
+    calculateTotalRepayment,
+    isLoanDefaulted,
+    formatLoanData,
+    resetTransactionState,
+
+    // Refetch functions
+    refetchOffers: fetchActiveLoanOffers,
+    refetchLenderLoans: fetchLenderLoans,
+    refetchBorrowerLoans: fetchBorrowerLoans,
+  };
+};
