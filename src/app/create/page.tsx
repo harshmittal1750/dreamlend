@@ -14,7 +14,25 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useP2PLending, LoanOfferFormData } from "@/hooks/useP2PLending";
-import { CheckCircle, AlertCircle, Loader2, ArrowRight } from "lucide-react";
+import {
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Info,
+  AlertTriangle,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { TokenSelector } from "@/components/TokenSelector";
+import {
+  TokenInfo,
+  getRecommendedParameters,
+  formatBasisPoints,
+  formatDuration,
+  percentageToBasisPoints,
+  basisPointsToPercentage,
+  RISK_COLORS,
+} from "@/config/tokens";
 
 export default function CreateLoanOfferPage() {
   const {
@@ -35,6 +53,17 @@ export default function CreateLoanOfferPage() {
   });
 
   const [formErrors, setFormErrors] = useState<Partial<LoanOfferFormData>>({});
+  const [selectedLoanToken, setSelectedLoanToken] = useState<
+    TokenInfo | undefined
+  >();
+  const [selectedCollateralToken, setSelectedCollateralToken] = useState<
+    TokenInfo | undefined
+  >();
+  const [recommendedParams, setRecommendedParams] = useState<{
+    minCollateralRatio: number;
+    liquidationThreshold: number;
+    maxPriceStaleness: number;
+  } | null>(null);
 
   const handleInputChange = (field: keyof LoanOfferFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -42,6 +71,35 @@ export default function CreateLoanOfferPage() {
     // Clear error for this field when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleLoanTokenSelect = (token: TokenInfo) => {
+    setSelectedLoanToken(token);
+    setFormData((prev) => ({ ...prev, tokenAddress: token.address }));
+    updateRecommendedParams(token, selectedCollateralToken);
+  };
+
+  const handleCollateralTokenSelect = (token: TokenInfo) => {
+    setSelectedCollateralToken(token);
+    setFormData((prev) => ({ ...prev, collateralAddress: token.address }));
+    updateRecommendedParams(selectedLoanToken, token);
+  };
+
+  const updateRecommendedParams = (
+    loanToken?: TokenInfo,
+    collateralToken?: TokenInfo
+  ) => {
+    if (loanToken && collateralToken) {
+      const params = getRecommendedParameters(loanToken, collateralToken);
+      setRecommendedParams(params);
+
+      // Auto-fill recommended parameters if fields are empty
+      if (!formData.interestRate) {
+        setFormData((prev) => ({ ...prev, interestRate: "15" })); // 15% default (displayed as percentage)
+      }
+    } else {
+      setRecommendedParams(null);
     }
   };
 
@@ -53,6 +111,10 @@ export default function CreateLoanOfferPage() {
       errors.tokenAddress = "Token address is required";
     } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.tokenAddress)) {
       errors.tokenAddress = "Invalid Ethereum address";
+    } else if (
+      formData.tokenAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      errors.tokenAddress = "Please select a valid token (not a placeholder)";
     }
 
     // Amount validation
@@ -65,7 +127,7 @@ export default function CreateLoanOfferPage() {
       errors.amount = "Amount must be a positive number";
     }
 
-    // Interest rate validation
+    // Interest rate validation (input is in percentage, will be converted to basis points)
     if (!formData.interestRate) {
       errors.interestRate = "Interest rate is required";
     } else if (
@@ -94,6 +156,12 @@ export default function CreateLoanOfferPage() {
       errors.collateralAddress = "Collateral address is required";
     } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.collateralAddress)) {
       errors.collateralAddress = "Invalid Ethereum address";
+    } else if (
+      formData.collateralAddress ===
+      "0x0000000000000000000000000000000000000000"
+    ) {
+      errors.collateralAddress =
+        "Please select a valid collateral token (not a placeholder)";
     }
 
     // Collateral amount validation
@@ -123,7 +191,14 @@ export default function CreateLoanOfferPage() {
     }
 
     try {
-      await createLoanOffer(formData);
+      // Convert percentage to basis points for the contract
+      const contractFormData = {
+        ...formData,
+        interestRate: percentageToBasisPoints(
+          parseFloat(formData.interestRate)
+        ).toString(),
+      };
+      await createLoanOffer(contractFormData);
     } catch (error) {
       console.error("Failed to create loan offer:", error);
     }
@@ -261,24 +336,13 @@ export default function CreateLoanOfferPage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Loan Token Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tokenAddress">Token Address</Label>
-                  <Input
-                    id="tokenAddress"
-                    type="text"
-                    placeholder="0x..."
-                    value={formData.tokenAddress}
-                    onChange={(e) =>
-                      handleInputChange("tokenAddress", e.target.value)
-                    }
-                    className={formErrors.tokenAddress ? "border-red-500" : ""}
-                  />
-                  {formErrors.tokenAddress && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.tokenAddress}
-                    </p>
-                  )}
-                </div>
+                <TokenSelector
+                  selectedToken={selectedLoanToken}
+                  onTokenSelect={handleLoanTokenSelect}
+                  label="Loan Token"
+                  placeholder="Select token to lend"
+                  excludeToken={selectedCollateralToken}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="amount">Amount</Label>
                   <Input
@@ -351,28 +415,13 @@ export default function CreateLoanOfferPage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Collateral Requirements</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="collateralAddress">
-                    Collateral Token Address
-                  </Label>
-                  <Input
-                    id="collateralAddress"
-                    type="text"
-                    placeholder="0x..."
-                    value={formData.collateralAddress}
-                    onChange={(e) =>
-                      handleInputChange("collateralAddress", e.target.value)
-                    }
-                    className={
-                      formErrors.collateralAddress ? "border-red-500" : ""
-                    }
-                  />
-                  {formErrors.collateralAddress && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.collateralAddress}
-                    </p>
-                  )}
-                </div>
+                <TokenSelector
+                  selectedToken={selectedCollateralToken}
+                  onTokenSelect={handleCollateralTokenSelect}
+                  label="Collateral Token"
+                  placeholder="Select collateral token"
+                  excludeToken={selectedLoanToken}
+                />
                 <div className="space-y-2">
                   <Label htmlFor="collateralAmount">Collateral Amount</Label>
                   <Input
@@ -397,6 +446,84 @@ export default function CreateLoanOfferPage() {
               </div>
             </div>
 
+            {/* Risk Management Parameters */}
+            {recommendedParams &&
+              selectedLoanToken &&
+              selectedCollateralToken && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium flex items-center gap-2">
+                    <Info className="h-5 w-5 text-blue-500" />
+                    Risk Management Parameters
+                  </h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                      <Info className="h-4 w-4" />
+                      Recommended settings for {selectedLoanToken.symbol} →{" "}
+                      {selectedCollateralToken.symbol}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="bg-white rounded p-3 border border-blue-200">
+                        <div className="font-medium text-gray-700">
+                          Min Collateral Ratio
+                        </div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {formatBasisPoints(
+                            recommendedParams.minCollateralRatio
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Required at loan acceptance
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded p-3 border border-blue-200">
+                        <div className="font-medium text-gray-700">
+                          Liquidation Threshold
+                        </div>
+                        <div className="text-lg font-bold text-orange-600">
+                          {formatBasisPoints(
+                            recommendedParams.liquidationThreshold
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Liquidation trigger point
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded p-3 border border-blue-200">
+                        <div className="font-medium text-gray-700">
+                          Price Staleness
+                        </div>
+                        <div className="text-lg font-bold text-purple-600">
+                          {formatDuration(recommendedParams.maxPriceStaleness)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Max oracle age allowed
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium text-yellow-800">
+                          Risk Assessment
+                        </div>
+                        <div className="text-yellow-700">
+                          Based on volatility: {selectedLoanToken.symbol} (
+                          {selectedLoanToken.volatilityTier}) lending{" "}
+                          {selectedCollateralToken.symbol} (
+                          {selectedCollateralToken.volatilityTier}) collateral.
+                          Higher volatility assets require higher collateral
+                          ratios for safety.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             <Separator />
 
             {/* Summary */}
@@ -415,10 +542,11 @@ export default function CreateLoanOfferPage() {
                         Total Interest (if held to maturity):{" "}
                         {(
                           (parseFloat(formData.amount) *
-                            parseFloat(formData.interestRate) *
+                            parseFloat(formData.interestRate) * // percentage rate
                             parseFloat(formData.duration)) /
                           (365 * 100)
-                        ).toFixed(6)}{" "}
+                        ) // convert percentage to decimal and annualize
+                          .toFixed(6)}{" "}
                         tokens
                       </p>
                     )}

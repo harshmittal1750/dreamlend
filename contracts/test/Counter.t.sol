@@ -518,9 +518,10 @@ contract DreamLendTest is Test {
         // Fast forward time (30 days)
         vm.warp(block.timestamp + 30 days);
 
-        // Calculate expected interest (5% APR for 30 days)
-        uint256 expectedInterest = (LOAN_AMOUNT * INTEREST_RATE * 30 days) /
-            (10000 * 365 days);
+        // Calculate expected interest using the new formula (5% APR for 30 days)
+        // New formula: (amount * rate / 10000) * time / 31557600
+        uint256 annualizedAmount = (LOAN_AMOUNT * INTEREST_RATE) / 10000;
+        uint256 expectedInterest = (annualizedAmount * 30 days) / 31557600; // 365.25 days in seconds
         uint256 expectedTotal = LOAN_AMOUNT + expectedInterest;
 
         // Arrange: Borrower gets more loan tokens for repayment
@@ -696,24 +697,36 @@ contract DreamLendTest is Test {
         vm.stopPrank();
     }
 
-    function test_LiquidateLoan_OnlyLender() public {
+    function test_LiquidateLoan_PublicAccess() public {
         // Setup: Create and accept a loan
         _createAndAcceptLoan();
 
         // Fast forward past the loan duration
         vm.warp(block.timestamp + DURATION + 1);
 
-        // Try to liquidate as borrower
-        vm.startPrank(borrower);
-        vm.expectRevert("Only lender can liquidate");
-        dreamLend.liquidateLoan(1);
-        vm.stopPrank();
+        // Anyone can liquidate now (public liquidation)
+        address liquidator = address(0x3);
 
-        // Try to liquidate as someone else
-        vm.startPrank(address(0x3));
-        vm.expectRevert("Only lender can liquidate");
+        uint256 lenderBalanceBefore = collateralToken.balanceOf(lender);
+        uint256 liquidatorBalanceBefore = collateralToken.balanceOf(liquidator);
+
+        // Liquidate as a third party
+        vm.prank(liquidator);
         dreamLend.liquidateLoan(1);
-        vm.stopPrank();
+
+        // Verify liquidator received fee and lender received remaining collateral
+        uint256 expectedFee = (COLLATERAL_AMOUNT *
+            dreamLend.LIQUIDATION_FEE_BPS()) / 10000;
+        uint256 expectedLenderAmount = COLLATERAL_AMOUNT - expectedFee;
+
+        assertEq(
+            collateralToken.balanceOf(liquidator),
+            liquidatorBalanceBefore + expectedFee
+        );
+        assertEq(
+            collateralToken.balanceOf(lender),
+            lenderBalanceBefore + expectedLenderAmount
+        );
     }
 
     function test_LiquidateLoan_NotDefaulted() public {
@@ -722,14 +735,14 @@ contract DreamLendTest is Test {
 
         // Try to liquidate before deadline
         vm.startPrank(lender);
-        vm.expectRevert("Loan has not defaulted yet");
+        vm.expectRevert("Loan has not defaulted yet (time or price)");
         dreamLend.liquidateLoan(1);
         vm.stopPrank();
 
         // Try exactly at deadline (should still fail)
         vm.warp(block.timestamp + DURATION);
         vm.startPrank(lender);
-        vm.expectRevert("Loan has not defaulted yet");
+        vm.expectRevert("Loan has not defaulted yet (time or price)");
         dreamLend.liquidateLoan(1);
         vm.stopPrank();
     }

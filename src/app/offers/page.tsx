@@ -170,9 +170,13 @@ export default function OffersPage() {
               formattedCollateralAmount,
               formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points
               formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-              statusText: ["Pending", "Active", "Repaid", "Defaulted"][
-                loan.status
-              ],
+              statusText: [
+                "Pending",
+                "Active",
+                "Repaid",
+                "Defaulted",
+                "Cancelled",
+              ][loan.status],
               tokenInfo: tokenInfo || undefined,
               collateralInfo: collateralInfo || undefined,
             };

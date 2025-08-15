@@ -1,6 +1,6 @@
 // DreamLend Contract Configuration for Somnia L1 Testnet
 export const DREAMLEND_CONTRACT_ADDRESS =
-  "0xce149492Af18fAeA3746fa9EfdEC2Fc231c91d25";
+  "0x0B5D178d183344A3E8206AfA12eA4C59e57d4759";
 
 export const DREAMLEND_ABI = [
   {
@@ -86,6 +86,66 @@ export const DREAMLEND_ABI = [
     name: "getActiveLoanOffers",
     inputs: [],
     outputs: [{ name: "", type: "uint256[]", internalType: "uint256[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getActiveLoanOffersPaginated",
+    inputs: [
+      { name: "startIndex", type: "uint256", internalType: "uint256" },
+      { name: "count", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256[]", internalType: "uint256[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getActiveLoanOffersCount",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getLenderLoansPaginated",
+    inputs: [
+      { name: "lender", type: "address", internalType: "address" },
+      { name: "startIndex", type: "uint256", internalType: "uint256" },
+      { name: "count", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256[]", internalType: "uint256[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getBorrowerLoansPaginated",
+    inputs: [
+      { name: "borrower", type: "address", internalType: "address" },
+      { name: "startIndex", type: "uint256", internalType: "uint256" },
+      { name: "count", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256[]", internalType: "uint256[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getLenderLoansCount",
+    inputs: [{ name: "lender", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getBorrowerLoansCount",
+    inputs: [{ name: "borrower", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "LIQUIDATION_FEE_BPS",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view",
   },
   {
@@ -477,6 +537,7 @@ export enum LoanStatus {
   Active = 1,
   Repaid = 2,
   Defaulted = 3,
+  Cancelled = 4,
 }
 
 // Type definitions

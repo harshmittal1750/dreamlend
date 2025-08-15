@@ -132,9 +132,9 @@ export default function MyLoansPage() {
   >([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
-  const [actionType, setActionType] = useState<"repay" | "liquidate" | "cancel" | null>(
-    null
-  );
+  const [actionType, setActionType] = useState<
+    "repay" | "liquidate" | "cancel" | null
+  >(null);
 
   // Fetch detailed loan information
   useEffect(() => {
@@ -291,7 +291,9 @@ export default function MyLoansPage() {
       formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
       formattedTotalRepayment,
       formattedInterest,
-      statusText: ["Pending", "Active", "Repaid", "Defaulted"][loan.status],
+      statusText: ["Pending", "Active", "Repaid", "Defaulted", "Cancelled"][
+        loan.status
+      ],
       isOverdue,
       timeRemaining,
       progressPercent,
