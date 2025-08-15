@@ -88,6 +88,22 @@ interface EventLog {
   transactionHash: string;
 }
 
+interface ContractLog extends ethers.Log {
+  args: {
+    loanId: ethers.BigNumberish;
+    lender?: string;
+    borrower?: string;
+    liquidator?: string;
+    tokenAddress?: string;
+    amount?: ethers.BigNumberish;
+    interestRate?: ethers.BigNumberish;
+    duration?: ethers.BigNumberish;
+    collateralAddress?: string;
+    collateralAmount?: ethers.BigNumberish;
+    timestamp?: ethers.BigNumberish;
+  };
+}
+
 export default function AnalyticsPage() {
   const { isConnected } = useP2PLending();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
@@ -129,7 +145,7 @@ export default function AnalyticsPage() {
       const loanLiquidatedFilter = contract.filters.LoanLiquidated();
 
       // Function to fetch events in chunks
-      const fetchEventsInChunks = async (filter: ethers.EventFilter) => {
+      const fetchEventsInChunks = async (filter: ReturnType<typeof contract.filters.LoanCreated>) => {
         const allLogs = [];
         for (
           let fromBlock = startBlock;
@@ -194,50 +210,62 @@ export default function AnalyticsPage() {
         fetchEventsInChunks(loanLiquidatedFilter),
       ]);
 
-      // Process event data
+      // Process event data - cast logs to ContractLog to access args
       const loanCreatedEvents: EventLog[] = loanCreatedLogs.map(
-        (log: ethers.EventLog) => ({
-          loanId: BigInt(log.args.loanId.toString()),
-          lender: log.args.lender,
-          tokenAddress: log.args.tokenAddress,
-          amount: BigInt(log.args.amount.toString()),
-          interestRate: BigInt(log.args.interestRate.toString()),
-          duration: BigInt(log.args.duration.toString()),
-          collateralAddress: log.args.collateralAddress,
-          collateralAmount: BigInt(log.args.collateralAmount.toString()),
-          blockNumber: BigInt(log.blockNumber.toString()),
-          transactionHash: log.transactionHash,
-        })
+        (log) => {
+          const contractLog = log as ContractLog;
+          return {
+            loanId: BigInt(contractLog.args.loanId.toString()),
+            lender: contractLog.args.lender,
+            tokenAddress: contractLog.args.tokenAddress,
+            amount: BigInt(contractLog.args.amount!.toString()),
+            interestRate: BigInt(contractLog.args.interestRate!.toString()),
+            duration: BigInt(contractLog.args.duration!.toString()),
+            collateralAddress: contractLog.args.collateralAddress,
+            collateralAmount: BigInt(contractLog.args.collateralAmount!.toString()),
+            blockNumber: BigInt(contractLog.blockNumber.toString()),
+            transactionHash: contractLog.transactionHash,
+          };
+        }
       );
 
       const loanAcceptedEvents: EventLog[] = loanAcceptedLogs.map(
-        (log: ethers.EventLog) => ({
-          loanId: BigInt(log.args.loanId.toString()),
-          borrower: log.args.borrower,
-          timestamp: BigInt(log.args.timestamp.toString()),
-          blockNumber: BigInt(log.blockNumber.toString()),
-          transactionHash: log.transactionHash,
-        })
+        (log) => {
+          const contractLog = log as ContractLog;
+          return {
+            loanId: BigInt(contractLog.args.loanId.toString()),
+            borrower: contractLog.args.borrower,
+            timestamp: BigInt(contractLog.args.timestamp!.toString()),
+            blockNumber: BigInt(contractLog.blockNumber.toString()),
+            transactionHash: contractLog.transactionHash,
+          };
+        }
       );
 
       const loanRepaidEvents: EventLog[] = loanRepaidLogs.map(
-        (log: ethers.EventLog) => ({
-          loanId: BigInt(log.args.loanId.toString()),
-          borrower: log.args.borrower,
-          timestamp: BigInt(log.args.timestamp.toString()),
-          blockNumber: BigInt(log.blockNumber.toString()),
-          transactionHash: log.transactionHash,
-        })
+        (log) => {
+          const contractLog = log as ContractLog;
+          return {
+            loanId: BigInt(contractLog.args.loanId.toString()),
+            borrower: contractLog.args.borrower,
+            timestamp: BigInt(contractLog.args.timestamp!.toString()),
+            blockNumber: BigInt(contractLog.blockNumber.toString()),
+            transactionHash: contractLog.transactionHash,
+          };
+        }
       );
 
       const loanLiquidatedEvents: EventLog[] = loanLiquidatedLogs.map(
-        (log: ethers.EventLog) => ({
-          loanId: BigInt(log.args.loanId.toString()),
-          borrower: log.args.liquidator,
-          timestamp: BigInt(log.args.timestamp.toString()),
-          blockNumber: BigInt(log.blockNumber.toString()),
-          transactionHash: log.transactionHash,
-        })
+        (log) => {
+          const contractLog = log as ContractLog;
+          return {
+            loanId: BigInt(contractLog.args.loanId.toString()),
+            borrower: contractLog.args.liquidator,
+            timestamp: BigInt(contractLog.args.timestamp!.toString()),
+            blockNumber: BigInt(contractLog.blockNumber.toString()),
+            transactionHash: contractLog.transactionHash,
+          };
+        }
       );
 
       // Get detailed loan information for TVL calculation
