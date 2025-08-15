@@ -22,7 +22,7 @@ import {
   Info,
   AlertTriangle,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 import { TokenSelector } from "@/components/TokenSelector";
 import {
   TokenInfo,
@@ -30,8 +30,7 @@ import {
   formatBasisPoints,
   formatDuration,
   percentageToBasisPoints,
-  basisPointsToPercentage,
-  RISK_COLORS,
+  // basisPointsToPercentage,
 } from "@/config/tokens";
 
 export default function CreateLoanOfferPage() {
@@ -240,24 +239,34 @@ export default function CreateLoanOfferPage() {
     const status = getStepStatus(step);
 
     return (
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-3">
         {status === "loading" && (
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          </div>
         )}
         {status === "success" && (
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </div>
         )}
-        {status === "error" && <AlertCircle className="h-4 w-4 text-red-500" />}
+        {status === "error" && (
+          <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+          </div>
+        )}
         {status === "idle" && (
-          <div className="h-4 w-4 rounded-full border-2 border-gray-300" />
+          <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30" />
         )}
         <span
-          className={`text-sm ${
+          className={`font-medium ${
             status === "success"
-              ? "text-green-700"
+              ? "text-green-600"
               : status === "error"
-              ? "text-red-700"
-              : "text-gray-700"
+              ? "text-red-600"
+              : status === "loading"
+              ? "text-primary"
+              : "text-muted-foreground"
           }`}
         >
           {label}
@@ -268,20 +277,36 @@ export default function CreateLoanOfferPage() {
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Loan Offer</CardTitle>
-            <CardDescription>
-              Connect your wallet to create a loan offer on DreamLend
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Create Loan Offer
+          </h1>
+          <p className="text-xl text-muted-foreground">
+            Connect your wallet to start lending on DreamLend
+          </p>
+        </div>
+
+        <Card className="luxury-shadow-lg">
+          <CardHeader className="text-center pb-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">
+              Wallet Connection Required
+            </CardTitle>
+            <CardDescription className="text-lg">
+              Connect your wallet to Somnia L1 testnet to create premium loan
+              offers
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Please connect your wallet to Somnia L1 testnet to create loan
-                offers.
+            <Alert className="border-primary/20 bg-primary/5">
+              <AlertCircle className="h-5 w-5 text-primary" />
+              <AlertDescription className="text-base">
+                Please connect your wallet to Somnia L1 testnet to access the
+                loan creation interface. Your wallet will be used to sign
+                transactions and manage your loan offers.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -291,27 +316,54 @@ export default function CreateLoanOfferPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Loan Offer</CardTitle>
-          <CardDescription>
-            Create a new loan offer on DreamLend. Your tokens will be escrowed
-            until the offer is accepted or cancelled.
-          </CardDescription>
+    <div className="max-w-4xl mx-auto">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          Create Loan Offer
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          Create a premium loan offer on DreamLend. Your tokens will be securely
+          escrowed until the offer is accepted or cancelled.
+        </p>
+      </div>
+
+      <Card className="luxury-shadow-lg">
+        <CardHeader className="pb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">
+                Loan Offer Configuration
+              </CardTitle>
+              <CardDescription className="text-base mt-2">
+                Configure your loan terms and collateral requirements
+              </CardDescription>
+            </div>
+            {address && (
+              <div className="glass px-3 py-2 rounded-xl">
+                <span className="text-xs font-mono text-muted-foreground">
+                  {address.slice(0, 6)}...{address.slice(-4)}
+                </span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {transactionState.step !== "idle" && (
-            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-              <h3 className="font-medium mb-3">Transaction Progress</h3>
-              <div className="space-y-2">
-                {renderStepIndicator("approving", "Approve Token Spending")}
-                <div className="flex items-center justify-center">
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
+            <Card className="mb-6 bg-accent/30 border-primary/20">
+              <CardContent className="pt-6">
+                <h3 className="font-semibold mb-4 text-lg flex items-center">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                  Transaction Progress
+                </h3>
+                <div className="space-y-3">
+                  {renderStepIndicator("approving", "Approve Token Spending")}
+                  <div className="flex items-center justify-center py-2">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {renderStepIndicator("creating", "Create Loan Offer")}
                 </div>
-                {renderStepIndicator("creating", "Create Loan Offer")}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {transactionState.isError && (
@@ -331,120 +383,191 @@ export default function CreateLoanOfferPage() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Loan Token Details */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Loan Token Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TokenSelector
-                  selectedToken={selectedLoanToken}
-                  onTokenSelect={handleLoanTokenSelect}
-                  label="Loan Token"
-                  placeholder="Select token to lend"
-                  excludeToken={selectedCollateralToken}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.000001"
-                    placeholder="1000"
-                    value={formData.amount}
-                    onChange={(e) =>
-                      handleInputChange("amount", e.target.value)
-                    }
-                    className={formErrors.amount ? "border-red-500" : ""}
-                  />
-                  {formErrors.amount && (
-                    <p className="text-sm text-red-500">{formErrors.amount}</p>
-                  )}
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl flex items-center">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-primary font-bold text-sm">1</span>
+                  </div>
+                  Loan Token Details
+                </CardTitle>
+                <CardDescription>
+                  Choose the token you want to lend and specify the amount
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <TokenSelector
+                      selectedToken={selectedLoanToken}
+                      onTokenSelect={handleLoanTokenSelect}
+                      label="Loan Token"
+                      placeholder="Select token to lend"
+                      excludeToken={selectedCollateralToken}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount" className="text-base font-medium">
+                      Amount
+                    </Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.000001"
+                      placeholder="1000"
+                      value={formData.amount}
+                      onChange={(e) =>
+                        handleInputChange("amount", e.target.value)
+                      }
+                      className={`h-12 text-base ${
+                        formErrors.amount
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }`}
+                    />
+                    {formErrors.amount && (
+                      <p className="text-sm text-destructive flex items-center mt-2">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {formErrors.amount}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <Separator />
+              </CardContent>
+            </Card>
 
             {/* Loan Terms */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Loan Terms</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="interestRate">Annual Interest Rate (%)</Label>
-                  <Input
-                    id="interestRate"
-                    type="number"
-                    step="0.01"
-                    placeholder="5.0"
-                    value={formData.interestRate}
-                    onChange={(e) =>
-                      handleInputChange("interestRate", e.target.value)
-                    }
-                    className={formErrors.interestRate ? "border-red-500" : ""}
-                  />
-                  {formErrors.interestRate && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.interestRate}
-                    </p>
-                  )}
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl flex items-center">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-primary font-bold text-sm">2</span>
+                  </div>
+                  Loan Terms
+                </CardTitle>
+                <CardDescription>
+                  Set your interest rate and loan duration preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="interestRate"
+                      className="text-base font-medium"
+                    >
+                      Annual Interest Rate (%)
+                    </Label>
+                    <Input
+                      id="interestRate"
+                      type="number"
+                      step="0.01"
+                      placeholder="5.0"
+                      value={formData.interestRate}
+                      onChange={(e) =>
+                        handleInputChange("interestRate", e.target.value)
+                      }
+                      className={`h-12 text-base ${
+                        formErrors.interestRate
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }`}
+                    />
+                    {formErrors.interestRate && (
+                      <p className="text-sm text-destructive flex items-center mt-2">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {formErrors.interestRate}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="duration" className="text-base font-medium">
+                      Duration (Days)
+                    </Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      placeholder="30"
+                      value={formData.duration}
+                      onChange={(e) =>
+                        handleInputChange("duration", e.target.value)
+                      }
+                      className={`h-12 text-base ${
+                        formErrors.duration
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }`}
+                    />
+                    {formErrors.duration && (
+                      <p className="text-sm text-destructive flex items-center mt-2">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {formErrors.duration}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration (Days)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    placeholder="30"
-                    value={formData.duration}
-                    onChange={(e) =>
-                      handleInputChange("duration", e.target.value)
-                    }
-                    className={formErrors.duration ? "border-red-500" : ""}
-                  />
-                  {formErrors.duration && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.duration}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Separator />
+              </CardContent>
+            </Card>
 
             {/* Collateral Details */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Collateral Requirements</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TokenSelector
-                  selectedToken={selectedCollateralToken}
-                  onTokenSelect={handleCollateralTokenSelect}
-                  label="Collateral Token"
-                  placeholder="Select collateral token"
-                  excludeToken={selectedLoanToken}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="collateralAmount">Collateral Amount</Label>
-                  <Input
-                    id="collateralAmount"
-                    type="number"
-                    step="0.000001"
-                    placeholder="1500"
-                    value={formData.collateralAmount}
-                    onChange={(e) =>
-                      handleInputChange("collateralAmount", e.target.value)
-                    }
-                    className={
-                      formErrors.collateralAmount ? "border-red-500" : ""
-                    }
-                  />
-                  {formErrors.collateralAmount && (
-                    <p className="text-sm text-red-500">
-                      {formErrors.collateralAmount}
-                    </p>
-                  )}
+            <Card className="border-border/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl flex items-center">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                    <span className="text-primary font-bold text-sm">3</span>
+                  </div>
+                  Collateral Requirements
+                </CardTitle>
+                <CardDescription>
+                  Define what collateral borrowers must provide to secure the
+                  loan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <TokenSelector
+                      selectedToken={selectedCollateralToken}
+                      onTokenSelect={handleCollateralTokenSelect}
+                      label="Collateral Token"
+                      placeholder="Select collateral token"
+                      excludeToken={selectedLoanToken}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="collateralAmount"
+                      className="text-base font-medium"
+                    >
+                      Collateral Amount
+                    </Label>
+                    <Input
+                      id="collateralAmount"
+                      type="number"
+                      step="0.000001"
+                      placeholder="1500"
+                      value={formData.collateralAmount}
+                      onChange={(e) =>
+                        handleInputChange("collateralAmount", e.target.value)
+                      }
+                      className={`h-12 text-base ${
+                        formErrors.collateralAmount
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }`}
+                    />
+                    {formErrors.collateralAmount && (
+                      <p className="text-sm text-destructive flex items-center mt-2">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {formErrors.collateralAmount}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Risk Management Parameters */}
             {recommendedParams &&
@@ -528,55 +651,109 @@ export default function CreateLoanOfferPage() {
 
             {/* Summary */}
             {formData.amount && formData.interestRate && formData.duration && (
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium mb-2">Loan Summary</h3>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>Loan Amount: {formData.amount} tokens</p>
-                  <p>Interest Rate: {formData.interestRate}% APR</p>
-                  <p>Duration: {formData.duration} days</p>
-                  <p>Required Collateral: {formData.collateralAmount} tokens</p>
-                  {formData.amount &&
-                    formData.interestRate &&
-                    formData.duration && (
-                      <p className="font-medium">
-                        Total Interest (if held to maturity):{" "}
-                        {(
-                          (parseFloat(formData.amount) *
-                            parseFloat(formData.interestRate) * // percentage rate
-                            parseFloat(formData.duration)) /
-                          (365 * 100)
-                        ) // convert percentage to decimal and annualize
-                          .toFixed(6)}{" "}
-                        tokens
-                      </p>
-                    )}
-                </div>
-              </div>
+              <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl flex items-center">
+                    <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                    Loan Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Review your loan offer details before creating
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Loan Amount:
+                        </span>
+                        <span className="font-semibold">
+                          {formData.amount}{" "}
+                          {selectedLoanToken?.symbol || "tokens"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Interest Rate:
+                        </span>
+                        <span className="font-semibold">
+                          {formData.interestRate}% APR
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Duration:</span>
+                        <span className="font-semibold">
+                          {formData.duration} days
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          Required Collateral:
+                        </span>
+                        <span className="font-semibold">
+                          {formData.collateralAmount}{" "}
+                          {selectedCollateralToken?.symbol || "tokens"}
+                        </span>
+                      </div>
+                      {formData.amount &&
+                        formData.interestRate &&
+                        formData.duration && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Total Interest:
+                            </span>
+                            <span className="font-semibold text-green-600">
+                              {(
+                                (parseFloat(formData.amount) *
+                                  parseFloat(formData.interestRate) * // percentage rate
+                                  parseFloat(formData.duration)) /
+                                (365 * 100)
+                              ) // convert percentage to decimal and annualize
+                                .toFixed(6)}{" "}
+                              {selectedLoanToken?.symbol || "tokens"}
+                            </span>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button
                 type="submit"
                 disabled={transactionState.isLoading}
-                className="flex-1"
+                className="flex-1 h-12 text-base font-semibold btn-premium"
+                size="lg"
               >
                 {transactionState.isLoading && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 )}
                 {transactionState.step === "approving" && "Approving Tokens..."}
                 {transactionState.step === "creating" &&
                   "Creating Loan Offer..."}
                 {transactionState.step === "idle" && "Create Loan Offer"}
                 {transactionState.step === "success" && "Create Another Offer"}
+                {!transactionState.isLoading && (
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleReset}
                 disabled={transactionState.isLoading}
+                className="h-12 text-base font-medium px-8"
+                size="lg"
               >
-                Reset
+                Reset Form
               </Button>
             </div>
           </form>

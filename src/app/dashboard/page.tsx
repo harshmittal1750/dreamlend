@@ -75,7 +75,9 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-gray-900">
                   Loans as Lender
                 </p>
-                <p className="text-xs text-gray-500">Loans you've created</p>
+                <p className="text-xs text-gray-500">
+                  Loans you&apos;ve created
+                </p>
               </div>
             </div>
           </CardContent>
@@ -94,7 +96,9 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-gray-900">
                   Loans as Borrower
                 </p>
-                <p className="text-xs text-gray-500">Loans you've accepted</p>
+                <p className="text-xs text-gray-500">
+                  Loans you&apos;ve accepted
+                </p>
               </div>
             </div>
           </CardContent>
@@ -141,7 +145,7 @@ export default function DashboardPage() {
                   No Loan Offers
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  You haven't created any loan offers yet.
+                  You haven&apos;t created any loan offers yet.
                 </p>
                 <a href="/create" className="text-blue-600 hover:text-blue-800">
                   Create your first loan offer →
@@ -186,7 +190,7 @@ export default function DashboardPage() {
                   No Borrowed Loans
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  You haven't accepted any loan offers yet.
+                  You haven&apos;t accepted any loan offers yet.
                 </p>
                 <a href="/offers" className="text-blue-600 hover:text-blue-800">
                   Browse available offers →

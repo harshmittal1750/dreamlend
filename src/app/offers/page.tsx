@@ -22,11 +22,7 @@ import {
 } from "@/components/ui/table";
 import { useP2PLending } from "@/hooks/useP2PLending";
 import { Loan, LoanStatus } from "@/lib/contracts";
-import {
-  DREAMLEND_CONTRACT_ADDRESS,
-  DREAMLEND_ABI,
-  SOMNIA_TESTNET_CONFIG,
-} from "@/lib/contracts";
+import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
 import {
   CheckCircle,
   AlertCircle,
@@ -55,7 +51,19 @@ interface LoanOfferWithDetails extends Loan {
 }
 
 // Helper function to convert API response to Loan type
-const convertApiResponseToLoan = (loanData: any): Loan => {
+const convertApiResponseToLoan = (loanData: {
+  id: string;
+  lender: string;
+  borrower: string;
+  tokenAddress: string;
+  amount: string;
+  interestRate: string;
+  duration: string;
+  collateralAddress: string;
+  collateralAmount: string;
+  startTime: string;
+  status: number;
+}): Loan => {
   return {
     id: BigInt(loanData.id),
     lender: loanData.lender,
@@ -109,7 +117,7 @@ export default function OffersPage() {
     acceptLoanOffer,
     cancelLoanOffer,
     transactionState,
-    resetTransactionState,
+
     isConnected,
     address,
     refetchOffers,
@@ -458,8 +466,8 @@ export default function OffersPage() {
             <CardHeader>
               <CardTitle>Available Offers</CardTitle>
               <CardDescription>
-                Click "Accept" to accept a loan offer. You'll need to approve
-                collateral tokens first.
+                Click &quot;Accept&quot; to accept a loan offer. You&apos;ll
+                need to approve collateral tokens first.
               </CardDescription>
             </CardHeader>
             <CardContent>

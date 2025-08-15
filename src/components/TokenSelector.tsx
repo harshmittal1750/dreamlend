@@ -36,7 +36,7 @@ export function TokenSelector({
 }: TokenSelectorProps) {
   const [open, setOpen] = useState(false);
   const allTokens = getAllSupportedTokens();
-  
+
   // Filter out tokens with placeholder addresses (0x000...000) and excluded tokens
   const availableTokens = allTokens.filter((token) => {
     // Exclude tokens with zero address (unassigned placeholders)
@@ -97,7 +97,9 @@ export function TokenSelector({
             {Object.entries(TOKEN_CATEGORIES).map(([categoryKey, category]) => {
               const categoryTokens = category.tokens.filter((token) => {
                 // Exclude tokens with zero address (unassigned placeholders)
-                if (token.address === "0x0000000000000000000000000000000000000000") {
+                if (
+                  token.address === "0x0000000000000000000000000000000000000000"
+                ) {
                   return false;
                 }
                 // Exclude the specified token

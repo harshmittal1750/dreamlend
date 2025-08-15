@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
 import {
   Card,
@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useP2PLending } from "@/hooks/useP2PLending";
@@ -28,8 +28,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -90,10 +88,8 @@ interface EventLog {
   transactionHash: string;
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
-
 export default function AnalyticsPage() {
-  const { isConnected, activeLoanOfferIds } = useP2PLending();
+  const { isConnected } = useP2PLending();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
     null
   );
@@ -108,7 +104,7 @@ export default function AnalyticsPage() {
     );
   };
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -133,7 +129,7 @@ export default function AnalyticsPage() {
       const loanLiquidatedFilter = contract.filters.LoanLiquidated();
 
       // Function to fetch events in chunks
-      const fetchEventsInChunks = async (filter: any) => {
+      const fetchEventsInChunks = async (filter: ethers.EventFilter) => {
         const allLogs = [];
         for (
           let fromBlock = startBlock;
@@ -144,14 +140,17 @@ export default function AnalyticsPage() {
           try {
             const logs = await contract.queryFilter(filter, fromBlock, toBlock);
             allLogs.push(...logs);
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.warn(
               `Failed to fetch events from block ${fromBlock} to ${toBlock}:`,
               error
             );
 
             // If even the chunk size is too large, try smaller chunks
-            if (error.message?.includes("block range exceeds")) {
+            if (
+              error instanceof Error &&
+              error.message?.includes("block range exceeds")
+            ) {
               const smallerChunkSize = 100;
               for (
                 let smallFromBlock = fromBlock;
@@ -196,21 +195,23 @@ export default function AnalyticsPage() {
       ]);
 
       // Process event data
-      const loanCreatedEvents: EventLog[] = loanCreatedLogs.map((log: any) => ({
-        loanId: BigInt(log.args.loanId.toString()),
-        lender: log.args.lender,
-        tokenAddress: log.args.tokenAddress,
-        amount: BigInt(log.args.amount.toString()),
-        interestRate: BigInt(log.args.interestRate.toString()),
-        duration: BigInt(log.args.duration.toString()),
-        collateralAddress: log.args.collateralAddress,
-        collateralAmount: BigInt(log.args.collateralAmount.toString()),
-        blockNumber: BigInt(log.blockNumber.toString()),
-        transactionHash: log.transactionHash,
-      }));
+      const loanCreatedEvents: EventLog[] = loanCreatedLogs.map(
+        (log: ethers.EventLog) => ({
+          loanId: BigInt(log.args.loanId.toString()),
+          lender: log.args.lender,
+          tokenAddress: log.args.tokenAddress,
+          amount: BigInt(log.args.amount.toString()),
+          interestRate: BigInt(log.args.interestRate.toString()),
+          duration: BigInt(log.args.duration.toString()),
+          collateralAddress: log.args.collateralAddress,
+          collateralAmount: BigInt(log.args.collateralAmount.toString()),
+          blockNumber: BigInt(log.blockNumber.toString()),
+          transactionHash: log.transactionHash,
+        })
+      );
 
       const loanAcceptedEvents: EventLog[] = loanAcceptedLogs.map(
-        (log: any) => ({
+        (log: ethers.EventLog) => ({
           loanId: BigInt(log.args.loanId.toString()),
           borrower: log.args.borrower,
           timestamp: BigInt(log.args.timestamp.toString()),
@@ -219,16 +220,18 @@ export default function AnalyticsPage() {
         })
       );
 
-      const loanRepaidEvents: EventLog[] = loanRepaidLogs.map((log: any) => ({
-        loanId: BigInt(log.args.loanId.toString()),
-        borrower: log.args.borrower,
-        timestamp: BigInt(log.args.timestamp.toString()),
-        blockNumber: BigInt(log.blockNumber.toString()),
-        transactionHash: log.transactionHash,
-      }));
+      const loanRepaidEvents: EventLog[] = loanRepaidLogs.map(
+        (log: ethers.EventLog) => ({
+          loanId: BigInt(log.args.loanId.toString()),
+          borrower: log.args.borrower,
+          timestamp: BigInt(log.args.timestamp.toString()),
+          blockNumber: BigInt(log.blockNumber.toString()),
+          transactionHash: log.transactionHash,
+        })
+      );
 
       const loanLiquidatedEvents: EventLog[] = loanLiquidatedLogs.map(
-        (log: any) => ({
+        (log: ethers.EventLog) => ({
           loanId: BigInt(log.args.loanId.toString()),
           borrower: log.args.liquidator,
           timestamp: BigInt(log.args.timestamp.toString()),
@@ -304,7 +307,16 @@ export default function AnalyticsPage() {
       ).length;
 
       // Daily activity (group by day)
-      const dailyActivityMap = new Map<string, any>();
+      const dailyActivityMap = new Map<
+        string,
+        {
+          date: string;
+          loansCreated: number;
+          loansAccepted: number;
+          loansRepaid: number;
+          loansLiquidated: number;
+        }
+      >();
 
       // Helper function to get date string from block number (approximate)
       const getDateFromBlockNumber = (blockNumber: bigint) => {
@@ -434,11 +446,11 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAnalyticsData();
-  }, []);
+  }, [fetchAnalyticsData]);
 
   const formatCurrency = (value: bigint) => {
     return `${parseFloat(ethers.formatEther(value)).toFixed(2)} ETH`;

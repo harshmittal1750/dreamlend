@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -27,7 +27,6 @@ import {
   AlertCircle,
   Loader2,
   Clock,
-  DollarSign,
   Calendar,
   Shield,
   TrendingUp,
@@ -57,7 +56,19 @@ interface LoanWithDetails extends Loan {
 }
 
 // Helper function to convert API response to Loan type
-const convertApiResponseToLoan = (loanData: any): Loan => {
+const convertApiResponseToLoan = (loanData: {
+  id: string;
+  lender: string;
+  borrower: string;
+  tokenAddress: string;
+  amount: string;
+  interestRate: string;
+  duration: string;
+  collateralAddress: string;
+  collateralAmount: string;
+  startTime: string;
+  status: number;
+}): Loan => {
   return {
     id: BigInt(loanData.id),
     lender: loanData.lender,
@@ -114,7 +125,7 @@ export default function MyLoansPage() {
     liquidateLoan,
     cancelLoanOffer,
     transactionState,
-    resetTransactionState,
+
     isConnected,
     address,
     refetchLenderLoans,
@@ -135,6 +146,76 @@ export default function MyLoansPage() {
   const [actionType, setActionType] = useState<
     "repay" | "liquidate" | "cancel" | null
   >(null);
+  // Format loan details for display
+  const formatLoanDetails = useCallback(
+    (
+      loan: Loan,
+      tokenInfo?: TokenInfo | null,
+      collateralInfo?: TokenInfo | null
+    ): LoanWithDetails => {
+      const currentTime = BigInt(Math.floor(Date.now() / 1000));
+      const interest = calculateInterest(loan, currentTime);
+      const totalRepayment = calculateTotalRepayment(loan, currentTime);
+      const isOverdue = isLoanDefaulted(loan, currentTime);
+
+      // Calculate time remaining
+      let timeRemaining = "N/A";
+      let progressPercent = 0;
+
+      if (loan.status === LoanStatus.Active) {
+        const endTime = loan.startTime + loan.duration;
+        const timeLeft = endTime - currentTime;
+
+        if (timeLeft > 0) {
+          const days = Number(timeLeft) / (24 * 60 * 60);
+          timeRemaining = `${Math.ceil(days)} days`;
+          progressPercent = Math.min(
+            100,
+            (Number(currentTime - loan.startTime) / Number(loan.duration)) * 100
+          );
+        } else {
+          timeRemaining = "Overdue";
+          progressPercent = 100;
+        }
+      }
+
+      // Format amounts using correct decimals
+      const formattedAmount = tokenInfo
+        ? ethers.formatUnits(loan.amount, tokenInfo.decimals)
+        : ethers.formatEther(loan.amount);
+
+      const formattedCollateralAmount = collateralInfo
+        ? ethers.formatUnits(loan.collateralAmount, collateralInfo.decimals)
+        : ethers.formatEther(loan.collateralAmount);
+
+      const formattedTotalRepayment = tokenInfo
+        ? ethers.formatUnits(totalRepayment, tokenInfo.decimals)
+        : ethers.formatEther(totalRepayment);
+
+      const formattedInterest = tokenInfo
+        ? ethers.formatUnits(interest, tokenInfo.decimals)
+        : ethers.formatEther(interest);
+
+      return {
+        ...loan,
+        formattedAmount,
+        formattedCollateralAmount,
+        formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points
+        formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+        formattedTotalRepayment,
+        formattedInterest,
+        statusText: ["Pending", "Active", "Repaid", "Defaulted", "Cancelled"][
+          loan.status
+        ],
+        isOverdue,
+        timeRemaining,
+        progressPercent,
+        tokenInfo: tokenInfo || undefined,
+        collateralInfo: collateralInfo || undefined,
+      };
+    },
+    [calculateInterest, calculateTotalRepayment, isLoanDefaulted]
+  );
 
   // Fetch detailed loan information
   useEffect(() => {
@@ -232,75 +313,7 @@ export default function MyLoansPage() {
     };
 
     fetchLoanDetails();
-  }, [lenderLoans, borrowerLoans]);
-
-  // Format loan details for display
-  const formatLoanDetails = (
-    loan: Loan,
-    tokenInfo?: TokenInfo | null,
-    collateralInfo?: TokenInfo | null
-  ): LoanWithDetails => {
-    const currentTime = BigInt(Math.floor(Date.now() / 1000));
-    const interest = calculateInterest(loan, currentTime);
-    const totalRepayment = calculateTotalRepayment(loan, currentTime);
-    const isOverdue = isLoanDefaulted(loan, currentTime);
-
-    // Calculate time remaining
-    let timeRemaining = "N/A";
-    let progressPercent = 0;
-
-    if (loan.status === LoanStatus.Active) {
-      const endTime = loan.startTime + loan.duration;
-      const timeLeft = endTime - currentTime;
-
-      if (timeLeft > 0) {
-        const days = Number(timeLeft) / (24 * 60 * 60);
-        timeRemaining = `${Math.ceil(days)} days`;
-        progressPercent = Math.min(
-          100,
-          (Number(currentTime - loan.startTime) / Number(loan.duration)) * 100
-        );
-      } else {
-        timeRemaining = "Overdue";
-        progressPercent = 100;
-      }
-    }
-
-    // Format amounts using correct decimals
-    const formattedAmount = tokenInfo
-      ? ethers.formatUnits(loan.amount, tokenInfo.decimals)
-      : ethers.formatEther(loan.amount);
-
-    const formattedCollateralAmount = collateralInfo
-      ? ethers.formatUnits(loan.collateralAmount, collateralInfo.decimals)
-      : ethers.formatEther(loan.collateralAmount);
-
-    const formattedTotalRepayment = tokenInfo
-      ? ethers.formatUnits(totalRepayment, tokenInfo.decimals)
-      : ethers.formatEther(totalRepayment);
-
-    const formattedInterest = tokenInfo
-      ? ethers.formatUnits(interest, tokenInfo.decimals)
-      : ethers.formatEther(interest);
-
-    return {
-      ...loan,
-      formattedAmount,
-      formattedCollateralAmount,
-      formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points
-      formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-      formattedTotalRepayment,
-      formattedInterest,
-      statusText: ["Pending", "Active", "Repaid", "Defaulted", "Cancelled"][
-        loan.status
-      ],
-      isOverdue,
-      timeRemaining,
-      progressPercent,
-      tokenInfo: tokenInfo || undefined,
-      collateralInfo: collateralInfo || undefined,
-    };
-  };
+  }, [lenderLoans, borrowerLoans, formatLoanDetails]);
 
   const handleRepayLoan = async (loan: LoanWithDetails) => {
     if (!address) {
@@ -453,8 +466,8 @@ export default function MyLoansPage() {
     if (loans.length === 0) {
       const emptyMessage =
         userRole === "lender"
-          ? "You haven't created any loan offers yet."
-          : "You haven't accepted any loan offers yet.";
+          ? "You haven&apos;t created any loan offers yet."
+          : "You haven&apos;t accepted any loan offers yet.";
       const actionLink = userRole === "lender" ? "/create" : "/offers";
       const actionText =
         userRole === "lender"
@@ -724,7 +737,9 @@ export default function MyLoansPage() {
                   {isLoadingLenderLoans ? "..." : lenderLoans?.length || 0}
                 </p>
                 <p className="text-sm font-medium text-gray-900">As Lender</p>
-                <p className="text-xs text-gray-500">Loans you've offered</p>
+                <p className="text-xs text-gray-500">
+                  Loans you&apos;ve offered
+                </p>
               </div>
             </div>
           </CardContent>
@@ -741,7 +756,7 @@ export default function MyLoansPage() {
                   {isLoadingBorrowerLoans ? "..." : borrowerLoans?.length || 0}
                 </p>
                 <p className="text-sm font-medium text-gray-900">As Borrower</p>
-                <p className="text-xs text-gray-500">Loans you've taken</p>
+                <p className="text-xs text-gray-500">Loans you&apos;ve taken</p>
               </div>
             </div>
           </CardContent>
@@ -795,7 +810,7 @@ export default function MyLoansPage() {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <TrendingUp className="h-5 w-5 text-green-600" />
-            <span>Loans I'm Offering</span>
+            <span>Loans I&apos;m Offering</span>
           </CardTitle>
           <CardDescription>
             Loans where you are the lender - monitor repayments and liquidate
@@ -826,7 +841,7 @@ export default function MyLoansPage() {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Clock className="h-5 w-5 text-blue-600" />
-            <span>Loans I've Borrowed</span>
+            <span>Loans I&apos;ve Borrowed</span>
           </CardTitle>
           <CardDescription>
             Loans where you are the borrower - track repayment deadlines and

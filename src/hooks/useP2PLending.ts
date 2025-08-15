@@ -9,7 +9,6 @@ import {
   ERC20_ABI,
   Loan,
   LoanStatus,
-  CreateLoanOfferParams,
   SOMNIA_TESTNET_CONFIG,
 } from "@/lib/contracts";
 
@@ -126,7 +125,9 @@ export const useP2PLending = () => {
       setIsLoadingOffers(true);
       const contract = getReadContract();
       const offers = await contract.getActiveLoanOffers();
-      setActiveLoanOfferIds(offers.map((id: any) => BigInt(id.toString())));
+      setActiveLoanOfferIds(
+        offers.map((id: ethers.BigNumberish) => BigInt(id.toString()))
+      );
     } catch (error) {
       console.error("Error fetching active loan offers:", error);
     } finally {
@@ -140,7 +141,9 @@ export const useP2PLending = () => {
       setIsLoadingLenderLoans(true);
       const contract = getReadContract();
       const loans = await contract.getLenderLoans(address);
-      setLenderLoans(loans.map((id: any) => BigInt(id.toString())));
+      setLenderLoans(
+        loans.map((id: ethers.BigNumberish) => BigInt(id.toString()))
+      );
     } catch (error) {
       console.error("Error fetching lender loans:", error);
     } finally {
@@ -154,7 +157,9 @@ export const useP2PLending = () => {
       setIsLoadingBorrowerLoans(true);
       const contract = getReadContract();
       const loans = await contract.getBorrowerLoans(address);
-      setBorrowerLoans(loans.map((id: any) => BigInt(id.toString())));
+      setBorrowerLoans(
+        loans.map((id: ethers.BigNumberish) => BigInt(id.toString()))
+      );
     } catch (error) {
       console.error("Error fetching borrower loans:", error);
     } finally {
@@ -253,12 +258,14 @@ export const useP2PLending = () => {
         }));
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to approve tokens";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to approve tokens",
+          error: errorMessage,
           hash: null,
           step: "error",
         });
@@ -330,12 +337,16 @@ export const useP2PLending = () => {
         await fetchLenderLoans();
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to create loan offer";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to create loan offer",
+          error: errorMessage,
           hash: null,
           step: "error",
         });
@@ -396,12 +407,16 @@ export const useP2PLending = () => {
         await fetchBorrowerLoans();
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to accept loan offer";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to accept loan offer",
+          error: errorMessage,
           hash: null,
           step: "error",
         });
@@ -470,12 +485,14 @@ export const useP2PLending = () => {
         await fetchLenderLoans();
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to repay loan";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to repay loan",
+          error: errorMessage,
           hash: null,
           step: "error",
         });
@@ -523,12 +540,14 @@ export const useP2PLending = () => {
         await fetchLenderLoans();
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to liquidate loan";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to liquidate loan",
+          error: errorMessage,
           hash: null,
           step: "error",
         });
@@ -571,12 +590,16 @@ export const useP2PLending = () => {
         await fetchLenderLoans();
 
         return tx.hash;
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to cancel loan offer";
         setTransactionState({
           isLoading: false,
           isSuccess: false,
           isError: true,
-          error: error.message || "Failed to cancel loan offer",
+          error: errorMessage,
           hash: null,
           step: "error",
         });

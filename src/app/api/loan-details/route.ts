@@ -51,13 +51,19 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(serializedLoan);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorCode =
+      error && typeof error === "object" && "code" in error
+        ? (error as { code: string }).code
+        : undefined;
     console.error("Error fetching loan details:", error);
     return NextResponse.json(
       {
         error: "Failed to fetch loan details",
-        details: error.message,
-        code: error.code,
+        details: errorMessage,
+        code: errorCode,
       },
       { status: 500 }
     );
