@@ -12,7 +12,7 @@ import {
   PlusCircle,
   List,
   User,
-  Wallet,
+  // Wallet,
   BarChart3,
   Moon,
   Sun,
