@@ -26,6 +26,7 @@
     "@reown/appkit": "1.7.17",
     "@reown/appkit-adapter-ethers": "1.7.17",
     "@tailwindcss/postcss": "^4.1.11",
+    "@vercel/analytics": "^1.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ethers": "^6.15.0",

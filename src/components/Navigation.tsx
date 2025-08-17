@@ -70,7 +70,11 @@ export function Navigation() {
             className="flex items-center space-x-3 group transition-all duration-300 hover:scale-105"
           >
             <div className="relative">
-              <Wallet className="h-7 w-7 text-primary transition-colors duration-300 group-hover:text-primary/80" />
+              <img
+                src="/logo.png"
+                alt="DreamLend Logo"
+                className=" w-20 h-20 text-primary transition-colors duration-300 group-hover:text-primary/80"
+              />
               <div className="absolute -inset-1 bg-primary/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
             <div className="flex items-center space-x-2">

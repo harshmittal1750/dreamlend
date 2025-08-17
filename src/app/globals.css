@@ -318,7 +318,7 @@ a {
   --popover-foreground: oklch(0.09 0.005 285.882);
 
   /* Premium primary - sophisticated blue */
-  --primary: oklch(0.457 0.136 263.391);
+  --primary: oklch(0.62444 0.10793 187.608);
   --primary-foreground: oklch(0.99 0.002 106.423);
 
   /* Refined secondary */
@@ -366,7 +366,7 @@ a {
   --popover-foreground: oklch(0.95 0.013 106.423);
 
   /* Sophisticated primary for dark mode */
-  --primary: oklch(0.664 0.156 263.391);
+  --primary: oklch(0.62444 0.10793 187.608);
   --primary-foreground: oklch(0.09 0.005 285.882);
 
   /* Refined secondary for dark */

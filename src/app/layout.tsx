@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
-
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import ContextProvider from "@/context";
 import Navigation from "@/components/Navigation";
 
 export const metadata: Metadata = {
-  title: "DreamLend - Premium P2P Lending",
+  title: "DreamLend - P2P Lending",
   description:
     "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1 with institutional-grade security and user experience.",
   keywords: [
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   metadataBase: new URL("https://dreamlend.finance"),
   openGraph: {
-    title: "DreamLend - Premium P2P Lending",
+    title: "DreamLend - P2P Lending",
     description:
       "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1.",
     url: "https://dreamlend.finance",
@@ -36,9 +36,10 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
+
   twitter: {
     card: "summary_large_image",
-    title: "DreamLend - Premium P2P Lending",
+    title: "DreamLend - P2P Lending",
     description:
       "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1.",
     creator: "@dreamlend",
@@ -106,6 +107,7 @@ export default async function RootLayout({
             </div>
           </ContextProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
