@@ -1,6 +1,6 @@
 // DreamLend Contract Configuration for Somnia L1 Testnet
 export const DREAMLEND_CONTRACT_ADDRESS =
-  "0x0B5D178d183344A3E8206AfA12eA4C59e57d4759";
+  "0xB05fb07eb4998B54767008DCa39C4717dEFeBdE1";
 
 export const DREAMLEND_ABI = [
   {

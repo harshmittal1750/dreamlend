@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Info,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 import { TokenSelector } from "@/components/TokenSelector";
@@ -32,6 +33,15 @@ import {
   percentageToBasisPoints,
   // basisPointsToPercentage,
 } from "@/config/tokens";
+import { useCollateralCalculation } from "@/hooks/useTokenPrices";
+import {
+  toBaseUnit,
+  fromBaseUnit,
+  formatTokenAmount,
+  formatUSDValue,
+  DecimalValidation,
+  getTokenDisplayPrecision,
+} from "@/lib/decimals";
 
 export default function CreateLoanOfferPage() {
   const {
@@ -64,12 +74,58 @@ export default function CreateLoanOfferPage() {
     maxPriceStaleness: number;
   } | null>(null);
 
-  const handleInputChange = (field: keyof LoanOfferFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  // Real-time collateral calculation based on oracle prices
+  const {
+    calculation: collateralCalc,
+    isLoading: calcLoading,
+    prices,
+    refreshPrices,
+  } = useCollateralCalculation(
+    selectedLoanToken,
+    selectedCollateralToken,
+    formData.amount,
+    formData.collateralAmount
+  );
 
+  const handleInputChange = (field: keyof LoanOfferFormData, value: string) => {
     // Clear error for this field when user starts typing
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+
+    // Handle decimal validation for amount fields
+    if (field === "amount" || field === "collateralAmount") {
+      const token =
+        field === "amount" ? selectedLoanToken : selectedCollateralToken;
+
+      if (token && value !== "") {
+        // Clean the input (remove invalid characters, limit decimals)
+        const cleanedValue = DecimalValidation.cleanInput(
+          value,
+          token.decimals
+        );
+
+        // Allow partial inputs during typing (like "1." or "0.0")
+        // Only validate format, not completeness
+        if (!DecimalValidation.isValidDecimal(cleanedValue)) {
+          // Don't block the input, but show a gentle warning
+          // Only set error if the input is clearly invalid (contains invalid characters)
+          if (cleanedValue !== value) {
+            setFormErrors((prev) => ({
+              ...prev,
+              [field]: `Only numbers and decimal point allowed`,
+            }));
+          }
+        }
+
+        // Update with cleaned value (this allows typing)
+        setFormData((prev) => ({ ...prev, [field]: cleanedValue }));
+      } else {
+        // Allow empty values during typing
+        setFormData((prev) => ({ ...prev, [field]: value }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [field]: value }));
     }
   };
 
@@ -119,11 +175,18 @@ export default function CreateLoanOfferPage() {
     // Amount validation
     if (!formData.amount) {
       errors.amount = "Amount is required";
-    } else if (
-      isNaN(parseFloat(formData.amount)) ||
-      parseFloat(formData.amount) <= 0
-    ) {
+    } else if (!DecimalValidation.isCompleteDecimal(formData.amount)) {
+      errors.amount = "Please enter a valid decimal number";
+    } else if (parseFloat(formData.amount) <= 0) {
       errors.amount = "Amount must be a positive number";
+    } else if (
+      selectedLoanToken &&
+      !DecimalValidation.hasValidPrecision(
+        formData.amount,
+        selectedLoanToken.decimals
+      )
+    ) {
+      errors.amount = `Maximum ${selectedLoanToken.decimals} decimal places allowed for ${selectedLoanToken.symbol}`;
     }
 
     // Interest rate validation (input is in percentage, will be converted to basis points)
@@ -167,10 +230,19 @@ export default function CreateLoanOfferPage() {
     if (!formData.collateralAmount) {
       errors.collateralAmount = "Collateral amount is required";
     } else if (
-      isNaN(parseFloat(formData.collateralAmount)) ||
-      parseFloat(formData.collateralAmount) <= 0
+      !DecimalValidation.isCompleteDecimal(formData.collateralAmount)
     ) {
+      errors.collateralAmount = "Please enter a valid decimal number";
+    } else if (parseFloat(formData.collateralAmount) <= 0) {
       errors.collateralAmount = "Collateral amount must be a positive number";
+    } else if (
+      selectedCollateralToken &&
+      !DecimalValidation.hasValidPrecision(
+        formData.collateralAmount,
+        selectedCollateralToken.decimals
+      )
+    ) {
+      errors.collateralAmount = `Maximum ${selectedCollateralToken.decimals} decimal places allowed for ${selectedCollateralToken.symbol}`;
     }
 
     setFormErrors(errors);
@@ -191,15 +263,54 @@ export default function CreateLoanOfferPage() {
 
     try {
       // Convert percentage to basis points for the contract
+      const interestRatePercentage = parseFloat(formData.interestRate);
+      const interestRateBasisPoints = percentageToBasisPoints(
+        interestRatePercentage
+      );
+
+      // Additional validation before contract call
+      if (interestRateBasisPoints > 10000) {
+        alert(
+          `Interest rate too high: ${interestRatePercentage}% (${interestRateBasisPoints} basis points). Maximum allowed is 100% (10000 basis points).`
+        );
+        return;
+      }
+
       const contractFormData = {
         ...formData,
-        interestRate: percentageToBasisPoints(
-          parseFloat(formData.interestRate)
-        ).toString(),
+        interestRate: interestRateBasisPoints.toString(),
       };
+
+      console.log("Creating loan with data:", {
+        ...contractFormData,
+        interestRatePercentage: `${interestRatePercentage}%`,
+        interestRateBasisPoints: `${interestRateBasisPoints} BP`,
+      });
+
       await createLoanOffer(contractFormData);
     } catch (error) {
       console.error("Failed to create loan offer:", error);
+
+      // Parse common error messages for better user feedback
+      let errorMessage = "Failed to create loan offer";
+
+      if (error instanceof Error) {
+        if (error.message.includes("Interest rate cannot exceed 100%")) {
+          errorMessage =
+            "Interest rate cannot exceed 100%. Please enter a lower rate.";
+        } else if (error.message.includes("require(false)")) {
+          errorMessage =
+            "Transaction failed due to validation error. Please check your inputs and try again.";
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds to create this loan offer.";
+        } else if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was cancelled by user.";
+        } else {
+          errorMessage = `Transaction failed: ${error.message}`;
+        }
+      }
+
+      alert(errorMessage);
     }
   };
 
@@ -414,9 +525,12 @@ export default function CreateLoanOfferPage() {
                     </Label>
                     <Input
                       id="amount"
-                      type="number"
-                      step="0.000001"
-                      placeholder="1000"
+                      type="text"
+                      placeholder={
+                        selectedLoanToken
+                          ? `e.g., 1000 (max ${selectedLoanToken.decimals} decimals)`
+                          : "1000"
+                      }
                       value={formData.amount}
                       onChange={(e) =>
                         handleInputChange("amount", e.target.value)
@@ -464,6 +578,8 @@ export default function CreateLoanOfferPage() {
                       id="interestRate"
                       type="number"
                       step="0.01"
+                      min="0.01"
+                      max="100"
                       placeholder="5.0"
                       value={formData.interestRate}
                       onChange={(e) =>
@@ -545,9 +661,12 @@ export default function CreateLoanOfferPage() {
                     </Label>
                     <Input
                       id="collateralAmount"
-                      type="number"
-                      step="0.000001"
-                      placeholder="1500"
+                      type="text"
+                      placeholder={
+                        selectedCollateralToken
+                          ? `e.g., 1500 (max ${selectedCollateralToken.decimals} decimals)`
+                          : "1500"
+                      }
                       value={formData.collateralAmount}
                       onChange={(e) =>
                         handleInputChange("collateralAmount", e.target.value)
@@ -568,6 +687,273 @@ export default function CreateLoanOfferPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Real-time Collateral Calculator */}
+            {collateralCalc &&
+              selectedLoanToken &&
+              selectedCollateralToken &&
+              formData.amount && (
+                <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl flex items-center">
+                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                            <Info className="h-5 w-5 text-green-600" />
+                          </div>
+                          Live Oracle Pricing & Collateral Calculator
+                        </CardTitle>
+                        <CardDescription>
+                          Real-time calculations based on current market prices
+                          from DIA oracles • Auto-refreshes every 30s
+                        </CardDescription>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={refreshPrices}
+                        disabled={calcLoading}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 ${
+                            calcLoading ? "animate-spin" : ""
+                          }`}
+                        />
+                        Refresh
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Current Market Prices */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">
+                            {selectedLoanToken.symbol} Price
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                prices.get(selectedLoanToken.address)?.isStale
+                                  ? "bg-red-400"
+                                  : "bg-green-400"
+                              }`}
+                            />
+                            <span className="text-xs text-gray-500">
+                              {prices.get(selectedLoanToken.address)?.isStale
+                                ? "Stale"
+                                : "Live"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">
+                          ${collateralCalc.priceImpact.loanTokenPriceUSD}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Updated:{" "}
+                          {new Date(
+                            (prices.get(selectedLoanToken.address)?.updatedAt ||
+                              0) * 1000
+                          ).toLocaleTimeString()}
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">
+                            {selectedCollateralToken.symbol} Price
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                prices.get(selectedCollateralToken.address)
+                                  ?.isStale
+                                  ? "bg-red-400"
+                                  : "bg-green-400"
+                              }`}
+                            />
+                            <span className="text-xs text-gray-500">
+                              {prices.get(selectedCollateralToken.address)
+                                ?.isStale
+                                ? "Stale"
+                                : "Live"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">
+                          ${collateralCalc.priceImpact.collateralTokenPriceUSD}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Updated:{" "}
+                          {new Date(
+                            (prices.get(selectedCollateralToken.address)
+                              ?.updatedAt || 0) * 1000
+                          ).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Exchange Rate */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-blue-800 mb-1">
+                          Exchange Rate
+                        </div>
+                        <div className="text-xl font-bold text-blue-600">
+                          1 {selectedLoanToken.symbol} ={" "}
+                          {collateralCalc.priceImpact.exchangeRate}{" "}
+                          {selectedCollateralToken.symbol}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Minimum Collateral Required */}
+                    <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <span className="font-semibold text-orange-800">
+                            Minimum Collateral Required
+                          </span>
+                        </div>
+                        <span className="text-sm text-orange-600 font-medium">
+                          {collateralCalc.minRatio}% Ratio
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-sm text-orange-700 mb-1">
+                            For {formData.amount} {selectedLoanToken.symbol}
+                          </div>
+                          <div className="text-2xl font-bold text-orange-600">
+                            {collateralCalc.minCollateralAmount}{" "}
+                            {selectedCollateralToken.symbol}
+                          </div>
+                          <div className="text-sm text-orange-600">
+                            ≈ {collateralCalc.priceImpact.minCollateralValueUSD}
+                          </div>
+                        </div>
+
+                        {formData.collateralAmount &&
+                          parseFloat(formData.collateralAmount) > 0 && (
+                            <div>
+                              <div className="text-sm text-gray-700 mb-1">
+                                Your Collateral Amount
+                              </div>
+                              <div
+                                className={`text-2xl font-bold ${
+                                  collateralCalc.isHealthy
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {formData.collateralAmount}{" "}
+                                {selectedCollateralToken.symbol}
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    collateralCalc.isHealthy
+                                      ? "bg-green-400"
+                                      : "bg-red-400"
+                                  }`}
+                                />
+                                <span
+                                  className={
+                                    collateralCalc.isHealthy
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }
+                                >
+                                  {collateralCalc.currentRatio}% Ratio{" "}
+                                  {collateralCalc.isHealthy
+                                    ? "(Healthy)"
+                                    : "(Insufficient)"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+
+                      {/* Auto-fill button */}
+                      <div className="mt-4 pt-4 border-t border-orange-200">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            handleInputChange(
+                              "collateralAmount",
+                              collateralCalc.minCollateralAmount
+                            );
+                          }}
+                          className="w-full bg-white hover:bg-orange-50 border-orange-300 text-orange-700"
+                        >
+                          Auto-fill Minimum Collateral (
+                          {collateralCalc.minCollateralAmount}{" "}
+                          {selectedCollateralToken.symbol})
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Health Status */}
+                    {formData.collateralAmount &&
+                      parseFloat(formData.collateralAmount) > 0 && (
+                        <div
+                          className={`border rounded-lg p-4 ${
+                            collateralCalc.isHealthy
+                              ? "bg-green-50 border-green-200"
+                              : "bg-red-50 border-red-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {collateralCalc.isHealthy ? (
+                              <CheckCircle className="h-6 w-6 text-green-600" />
+                            ) : (
+                              <AlertTriangle className="h-6 w-6 text-red-600" />
+                            )}
+                            <div>
+                              <div
+                                className={`font-semibold ${
+                                  collateralCalc.isHealthy
+                                    ? "text-green-800"
+                                    : "text-red-800"
+                                }`}
+                              >
+                                {collateralCalc.isHealthy
+                                  ? "Loan is Well Collateralized"
+                                  : "Insufficient Collateral"}
+                              </div>
+                              <div
+                                className={`text-sm ${
+                                  collateralCalc.isHealthy
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                Current ratio: {collateralCalc.currentRatio}% |
+                                Required: {collateralCalc.minRatio}% |
+                                Liquidation:{" "}
+                                {collateralCalc.liquidationThreshold}%
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    {calcLoading && (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        <span className="text-sm text-gray-600">
+                          Calculating collateral requirements...
+                        </span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
             {/* Risk Management Parameters */}
             {recommendedParams &&

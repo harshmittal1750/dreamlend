@@ -564,7 +564,7 @@ export default function OffersPage() {
                                 (selectedLoanId !== null &&
                                   selectedLoanId !== loan.id)
                               }
-                              className="w-full"
+                              // className="w-full"
                             >
                               {transactionState.isLoading &&
                                 selectedLoanId === loan.id && (

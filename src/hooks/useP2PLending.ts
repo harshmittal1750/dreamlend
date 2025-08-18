@@ -11,6 +11,7 @@ import {
   LoanStatus,
   SOMNIA_TESTNET_CONFIG,
 } from "@/lib/contracts";
+import { SUPPORTED_TOKENS } from "@/config/tokens";
 
 export interface TransactionState {
   isLoading: boolean;
@@ -281,15 +282,53 @@ export const useP2PLending = () => {
       if (!address) throw new Error("Wallet not connected");
 
       try {
-        // Convert form data to contract parameters
-        const amount = ethers.parseEther(formData.amount);
-        const interestRate = BigInt(
-          Math.floor(parseFloat(formData.interestRate) * 100)
-        ); // Convert to basis points
+        // Get token information for proper decimal handling
+        const loanToken = Object.values(SUPPORTED_TOKENS).find(
+          (token) =>
+            token.address.toLowerCase() === formData.tokenAddress.toLowerCase()
+        );
+        const collateralToken = Object.values(SUPPORTED_TOKENS).find(
+          (token) =>
+            token.address.toLowerCase() ===
+            formData.collateralAddress.toLowerCase()
+        );
+
+        if (!loanToken)
+          throw new Error("Loan token not found in supported tokens");
+        if (!collateralToken)
+          throw new Error("Collateral token not found in supported tokens");
+
+        // Convert form data to contract parameters using proper decimals
+        const amount = ethers.parseUnits(formData.amount, loanToken.decimals);
+        const interestRate = BigInt(formData.interestRate); // Already converted to basis points
         const duration = BigInt(
           Math.floor(parseFloat(formData.duration) * 24 * 60 * 60)
         ); // Convert days to seconds
-        const collateralAmount = ethers.parseEther(formData.collateralAmount);
+        const collateralAmount = ethers.parseUnits(
+          formData.collateralAmount,
+          collateralToken.decimals
+        );
+
+        // Debug logging for decimal conversion
+        console.log("Decimal conversion debug:", {
+          loanToken: {
+            symbol: loanToken.symbol,
+            decimals: loanToken.decimals,
+            inputAmount: formData.amount,
+            convertedAmount: amount.toString(),
+          },
+          collateralToken: {
+            symbol: collateralToken.symbol,
+            decimals: collateralToken.decimals,
+            inputAmount: formData.collateralAmount,
+            convertedAmount: collateralAmount.toString(),
+          },
+          interestRate: {
+            inputBasisPoints: formData.interestRate,
+            convertedBigInt: interestRate.toString(),
+            asPercentage: `${Number(interestRate) / 100}%`,
+          },
+        });
 
         // Step 1: Approve tokens
         setTransactionState({
@@ -647,14 +686,32 @@ export const useP2PLending = () => {
       const totalRepayment = calculateTotalRepayment(loan);
       const isDefaulted = isLoanDefaulted(loan);
 
+      // Get token information for proper decimal formatting
+      const loanToken = Object.values(SUPPORTED_TOKENS).find(
+        (token) =>
+          token.address.toLowerCase() === loan.tokenAddress.toLowerCase()
+      );
+      const collateralToken = Object.values(SUPPORTED_TOKENS).find(
+        (token) =>
+          token.address.toLowerCase() === loan.collateralAddress.toLowerCase()
+      );
+
       return {
         ...loan,
-        formattedAmount: ethers.formatEther(loan.amount),
-        formattedCollateralAmount: ethers.formatEther(loan.collateralAmount),
+        formattedAmount: loanToken
+          ? ethers.formatUnits(loan.amount, loanToken.decimals)
+          : ethers.formatEther(loan.amount),
+        formattedCollateralAmount: collateralToken
+          ? ethers.formatUnits(loan.collateralAmount, collateralToken.decimals)
+          : ethers.formatEther(loan.collateralAmount),
         formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points to percentage
         formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-        formattedInterest: ethers.formatEther(interest),
-        formattedTotalRepayment: ethers.formatEther(totalRepayment),
+        formattedInterest: loanToken
+          ? ethers.formatUnits(interest, loanToken.decimals)
+          : ethers.formatEther(interest),
+        formattedTotalRepayment: loanToken
+          ? ethers.formatUnits(totalRepayment, loanToken.decimals)
+          : ethers.formatEther(totalRepayment),
         isDefaulted,
         statusText: ["Pending", "Active", "Repaid", "Defaulted"][loan.status],
       };

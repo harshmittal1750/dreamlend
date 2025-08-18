@@ -22,57 +22,58 @@ export const SOMNIA_TESTNET_CONFIG = {
 // These addresses MUST be replaced with actual Somnia testnet token addresses before production use.
 // The addresses below match the SomniaConfig.sol placeholders for consistency.
 
-// Supported Tokens on Somnia Testnet
+// Mock Tokens for Testing on Somnia Testnet
+// ⚠️ UPDATE ADDRESSES AFTER DEPLOYING MOCK TOKENS ⚠️
 export const SUPPORTED_TOKENS: Record<string, TokenInfo> = {
-  USDT: {
-    address: "0x0ED782B8079529f7385c3eDA9fAf1EaA0DbC6a17", // PLACEHOLDER - Replace with actual USDT address
-    name: "Tether USD",
-    symbol: "USDT",
+  MUSDT: {
+    address: "0x5C99fEb638C1959144696a77CC900c58A4B4EB6F", // UPDATE WITH DEPLOYED MockUSDT ADDRESS
+    name: "Mock Tether USD",
+    symbol: "MUSDT",
     decimals: 6, // USDT typically has 6 decimals
-    description: "Stablecoin pegged to USD",
+    description: "Mock stablecoin for testing (pegged to USD)",
     category: "stablecoin",
     volatilityTier: "stable",
-    priceFeedAddress: "0x67d2C2a87A17b7267a6DBb1A59575C0E9A1D1c3e",
+    priceFeedAddress: "0x67d2C2a87A17b7267a6DBb1A59575C0E9A1D1c3e", // Real USDT oracle adapter
   },
-  USDC: {
-    address: "0x0ED782B8079529f7385c3eDA9fAf1EaA0DbC6a17", // PLACEHOLDER - Replace with actual USDC address
-    name: "USD Coin",
-    symbol: "USDC",
+  MUSDC: {
+    address: "0x571D9915eA4D187b7f0b1460fd0432D7Cce74c47", // UPDATE WITH DEPLOYED MockUSDC ADDRESS
+    name: "Mock USD Coin",
+    symbol: "MUSDC",
     decimals: 6, // USDC typically has 6 decimals
-    description: "Stablecoin backed by USD reserves",
+    description: "Mock stablecoin for testing (backed by USD reserves)",
     category: "stablecoin",
     volatilityTier: "stable",
-    priceFeedAddress: "0x235266D5ca6f19F134421C49834C108b32C2124e",
+    priceFeedAddress: "0x235266D5ca6f19F134421C49834C108b32C2124e", // Real USDC oracle adapter
   },
-  BTC: {
-    address: "0xE3233Ee6E373Be04277a435facc262E7A9c46151", // PLACEHOLDER - Replace with actual WBTC address
-    name: "Wrapped Bitcoin",
-    symbol: "WBTC",
+  MWBTC: {
+    address: "0xE218717fE38D582B8C00a8D6363f5BC7BF32a8B6", // UPDATE WITH DEPLOYED MockWBTC ADDRESS
+    name: "Mock Wrapped Bitcoin",
+    symbol: "MWBTC",
     decimals: 8, // WBTC typically has 8 decimals
-    description: "Tokenized Bitcoin on Ethereum",
+    description: "Mock tokenized Bitcoin for testing",
     category: "crypto",
     volatilityTier: "high",
-    priceFeedAddress: "0x4803db1ca3A1DA49c3DB991e1c390321c20e1f21",
+    priceFeedAddress: "0x4803db1ca3A1DA49c3DB991e1c390321c20e1f21", // Real BTC oracle adapter
   },
-  ARB: {
-    address: "0x0000000000000000000000000000000000000000", // UNASSIGNED PLACEHOLDER
-    name: "Arbitrum",
-    symbol: "ARB",
+  MARB: {
+    address: "0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1", // UPDATE WITH DEPLOYED MockARB ADDRESS
+    name: "Mock Arbitrum",
+    symbol: "MARB",
     decimals: 18, // ARB has 18 decimals
-    description: "Arbitrum ecosystem token",
+    description: "Mock Arbitrum ecosystem token for testing",
     category: "defi",
     volatilityTier: "moderate",
-    priceFeedAddress: "0x74952812B6a9e4f826b2969C6D189c4425CBc19B",
+    priceFeedAddress: "0x74952812B6a9e4f826b2969C6D189c4425CBc19B", // Real ARB oracle adapter
   },
-  SOL: {
-    address: "0xb35a7935F8fbc52fB525F16Af09329b3794E8C42", // PLACEHOLDER - Replace with actual SOL address
-    name: "Solana",
-    symbol: "SOL",
-    decimals: 18, // For EVM compatibility, using 18 decimals (native SOL uses 9, but wrapped versions often use 18)
-    description: "Solana blockchain native token",
+  MSOL: {
+    address: "0x71264e1321E1980b32002EAF6b24759DfBA5E281", // UPDATE WITH DEPLOYED MockSOL ADDRESS
+    name: "Mock Solana",
+    symbol: "MSOL",
+    decimals: 18, // For EVM compatibility, using 18 decimals
+    description: "Mock Solana blockchain native token for testing",
     category: "crypto",
     volatilityTier: "high",
-    priceFeedAddress: "0xD5Ea6C434582F827303423dA21729bEa4F87D519",
+    priceFeedAddress: "0xD5Ea6C434582F827303423dA21729bEa4F87D519", // Real SOL oracle adapter
   },
 } as const;
 
