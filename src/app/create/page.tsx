@@ -35,12 +35,12 @@ import {
 } from "@/config/tokens";
 import { useCollateralCalculation } from "@/hooks/useTokenPrices";
 import {
-  toBaseUnit,
-  fromBaseUnit,
-  formatTokenAmount,
-  formatUSDValue,
+  // toBaseUnit,
+  // fromBaseUnit,
+  // formatTokenAmount,
+  // formatUSDValue,
   DecimalValidation,
-  getTokenDisplayPrecision,
+  // getTokenDisplayPrecision,
 } from "@/lib/decimals";
 
 export default function CreateLoanOfferPage() {

@@ -476,7 +476,10 @@ export default function AnalyticsPage() {
     fetchAnalyticsData();
   }, [fetchAnalyticsData]);
 
-  const formatCurrency = (value: bigint, tokenAddress?: string) => {
+  const formatCurrency = (
+    value: bigint
+    // tokenAddress?: string
+  ) => {
     // For now, we'll use a generic formatting since we don't have token context
     // In the future, this could be enhanced to use proper token decimals
     return `${parseFloat(ethers.formatEther(value)).toFixed(2)} tokens`;
