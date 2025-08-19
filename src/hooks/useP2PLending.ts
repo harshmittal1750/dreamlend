@@ -309,16 +309,22 @@ export const useP2PLending = () => {
           collateralToken.decimals
         );
 
-        // Debug logging for decimal conversion
-        console.log("Decimal conversion debug:", {
+        // Debug logging for decimal conversion AND token addresses
+        console.log("🚨 LOAN CREATION DEBUG - Token Addresses Being Sent:", {
+          formData: {
+            tokenAddress: formData.tokenAddress,
+            collateralAddress: formData.collateralAddress,
+          },
           loanToken: {
             symbol: loanToken.symbol,
+            address: loanToken.address,
             decimals: loanToken.decimals,
             inputAmount: formData.amount,
             convertedAmount: amount.toString(),
           },
           collateralToken: {
             symbol: collateralToken.symbol,
+            address: collateralToken.address,
             decimals: collateralToken.decimals,
             inputAmount: formData.collateralAmount,
             convertedAmount: collateralAmount.toString(),
@@ -327,6 +333,14 @@ export const useP2PLending = () => {
             inputBasisPoints: formData.interestRate,
             convertedBigInt: interestRate.toString(),
             asPercentage: `${Number(interestRate) / 100}%`,
+          },
+          contractCallParams: {
+            tokenAddress: formData.tokenAddress,
+            amount: amount.toString(),
+            interestRate: interestRate.toString(),
+            duration: duration.toString(),
+            collateralAddress: formData.collateralAddress,
+            collateralAmount: collateralAmount.toString(),
           },
         });
 

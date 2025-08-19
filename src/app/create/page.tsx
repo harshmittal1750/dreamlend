@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { TokenSelector } from "@/components/TokenSelector";
+import { QuickMintTokens } from "@/components/QuickMintTokens";
 import {
   TokenInfo,
   getRecommendedParameters,
@@ -436,6 +437,11 @@ export default function CreateLoanOfferPage() {
           Create a loan offer on DreamLend. Your tokens will be securely
           escrowed until the offer is accepted or cancelled.
         </p>
+      </div>
+
+      {/* Quick Mint Tokens Section */}
+      <div className="mb-6">
+        <QuickMintTokens />
       </div>
 
       <Card className="luxury-shadow-lg">
