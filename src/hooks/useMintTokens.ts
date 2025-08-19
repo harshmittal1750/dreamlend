@@ -72,19 +72,29 @@ export function useMintTokens() {
           success: true,
           txHash: receipt.transactionHash,
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Minting failed:", error);
 
         let errorMessage = "Failed to mint tokens";
 
-        if (error.code === "ACTION_REJECTED") {
-          errorMessage = "Transaction was rejected by user";
-        } else if (error.message?.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds for gas fees";
-        } else if (error.message?.includes("execution reverted")) {
-          errorMessage = "Transaction reverted - check contract state";
-        } else if (error.message) {
-          errorMessage = error.message;
+        if (error && typeof error === "object") {
+          const err = error as { code?: string; message?: unknown };
+
+          if (err.code === "ACTION_REJECTED") {
+            errorMessage = "Transaction was rejected by user";
+          } else if (
+            typeof err.message === "string" &&
+            err.message.includes("insufficient funds")
+          ) {
+            errorMessage = "Insufficient funds for gas fees";
+          } else if (
+            typeof err.message === "string" &&
+            err.message.includes("execution reverted")
+          ) {
+            errorMessage = "Transaction reverted - check contract state";
+          } else if (typeof err.message === "string") {
+            errorMessage = err.message;
+          }
         }
 
         return {
