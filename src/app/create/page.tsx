@@ -387,45 +387,45 @@ export default function CreateLoanOfferPage() {
     );
   };
 
-  if (!isConnected) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Create Loan Offer
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Connect your wallet to start lending on DreamLend
-          </p>
-        </div>
+  // if (!isConnected) {
+  //   return (
+  //     <div className="max-w-4xl mx-auto">
+  //       <div className="text-center mb-8">
+  //         <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+  //           Create Loan Offer
+  //         </h1>
+  //         <p className="text-xl text-muted-foreground">
+  //           Connect your wallet to start lending on DreamLend
+  //         </p>
+  //       </div>
 
-        <Card className="luxury-shadow-lg">
-          <CardHeader className="text-center pb-8">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">
-              Wallet Connection Required
-            </CardTitle>
-            <CardDescription className="text-lg">
-              Connect your wallet to Somnia L1 testnet to create premium loan
-              offers
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="border-primary/20 bg-primary/5">
-              <AlertCircle className="h-5 w-5 text-primary" />
-              <AlertDescription className="text-base">
-                Please connect your wallet to Somnia L1 testnet to access the
-                loan creation interface. Your wallet will be used to sign
-                transactions and manage your loan offers.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  //       <Card className="luxury-shadow-lg">
+  //         <CardHeader className="text-center pb-8">
+  //           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+  //             <AlertCircle className="h-8 w-8 text-primary" />
+  //           </div>
+  //           <CardTitle className="text-2xl">
+  //             Wallet Connection Required
+  //           </CardTitle>
+  //           <CardDescription className="text-lg">
+  //             Connect your wallet to Somnia L1 testnet to create premium loan
+  //             offers
+  //           </CardDescription>
+  //         </CardHeader>
+  //         <CardContent>
+  //           <Alert className="border-primary/20 bg-primary/5">
+  //             <AlertCircle className="h-5 w-5 text-primary" />
+  //             <AlertDescription className="text-base">
+  //               Please connect your wallet to Somnia L1 testnet to access the
+  //               loan creation interface. Your wallet will be used to sign
+  //               transactions and manage your loan offers.
+  //             </AlertDescription>
+  //           </Alert>
+  //         </CardContent>
+  //       </Card>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="max-w-4xl mx-auto">

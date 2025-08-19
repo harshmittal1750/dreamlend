@@ -1,5 +1,8 @@
 // DreamLend Contract Configuration for Somnia L1 Testnet
-export const DREAMLEND_CONTRACT_ADDRESS =
+// Read contract address from environment (preferred for client: NEXT_PUBLIC_*, otherwise server-side)
+// Falls back to the previous hardcoded address if env not provided.
+export const DREAMLEND_CONTRACT_ADDRESS: string =
+  process.env.NEXT_PUBLIC_DREAMLEND_CONTRACT_ADDRESS ??
   "0xB05fb07eb4998B54767008DCa39C4717dEFeBdE1";
 
 export const DREAMLEND_ABI = [
