@@ -56,15 +56,16 @@ library SomniaConfig {
         address(0x571D9915eA4D187b7f0b1460fd0432D7Cce74c47); // PLACEHOLDER
     address public constant BTC_TOKEN =
         address(0xE218717fE38D582B8C00a8D6363f5BC7BF32a8B6); // PLACEHOLDER
-    address public constant ARB_TOKEN = address(0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1); // UNASSIGNED PLACEHOLDER
+    address public constant ARB_TOKEN =
+        address(0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1); // UNASSIGNED PLACEHOLDER
     address public constant SOL_TOKEN =
         address(0x71264e1321E1980b32002EAF6b24759DfBA5E281); // PLACEHOLDER
 
     // Default oracle parameters
     uint256 public constant DEFAULT_MIN_COLLATERAL_RATIO = 15000; // 150%
     uint256 public constant DEFAULT_LIQUIDATION_THRESHOLD = 12000; // 120%
-    uint256 public constant DEFAULT_MAX_PRICE_STALENESS = 3600; // 1 hour
-    uint256 public constant AGGRESSIVE_MAX_PRICE_STALENESS = 1800; // 30 minutes for volatile assets
+    uint256 public constant DEFAULT_MAX_PRICE_STALENESS = 86400; // 1 day TESTNET ONLY (0.5-1 hour for mainnet)
+    uint256 public constant AGGRESSIVE_MAX_PRICE_STALENESS = 86400; // 1 day for volatile assets TESTNET ONLY (0.5-1 hour for mainnet)
 
     // Asset volatility tiers for different staleness requirements
     enum VolatilityTier {

@@ -1,5 +1,8 @@
 // DreamLend Contract Configuration for Somnia L1 Testnet
 // Read contract address from environment (preferred for client: NEXT_PUBLIC_*, otherwise server-side)
+
+import { defineChain } from "viem";
+
 // Falls back to the previous hardcoded address if env not provided.
 export const DREAMLEND_CONTRACT_ADDRESS: string =
   process.env.NEXT_PUBLIC_DREAMLEND_CONTRACT_ADDRESS ??
@@ -508,14 +511,14 @@ export const ERC20_ABI = [
 ] as const;
 
 // Somnia L1 Testnet Configuration
-export const SOMNIA_TESTNET_CONFIG = {
+export const SOMNIA_TESTNET_CONFIG = defineChain({
   id: 50312, // Somnia L1 testnet chain ID (placeholder - check official docs)
   name: "Somnia Testnet",
   network: "somnia-testnet",
   nativeCurrency: {
     decimals: 18,
     name: "Somnia",
-    symbol: "SOM",
+    symbol: "STT",
   },
   rpcUrls: {
     default: {
@@ -532,7 +535,7 @@ export const SOMNIA_TESTNET_CONFIG = {
     },
   },
   testnet: true,
-} as const;
+});
 
 // Loan Status Enum
 export enum LoanStatus {

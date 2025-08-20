@@ -21,9 +21,6 @@ const somniaTestnet: AppKitNetwork = {
   testnet: SOMNIA_TESTNET_CONFIG.testnet,
 };
 
-export const networks = [somniaTestnet, mainnet, arbitrum] as [
-  AppKitNetwork,
-  ...AppKitNetwork[]
-];
+export const networks = [somniaTestnet] as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const ethersAdapter = new EthersAdapter();

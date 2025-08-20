@@ -23,6 +23,7 @@ import {
 import { useP2PLending } from "@/hooks/useP2PLending";
 import { Loan, LoanStatus } from "@/lib/contracts";
 import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
+import { useAllLoansWithStatus, ProcessedLoan } from "@/hooks/useSubgraphQuery";
 import {
   CheckCircle,
   AlertCircle,
@@ -31,6 +32,7 @@ import {
   DollarSign,
   Calendar,
   Shield,
+  RefreshCw,
 } from "lucide-react";
 import { ethers } from "ethers";
 
@@ -40,7 +42,7 @@ interface TokenInfo {
   decimals: number;
 }
 
-interface LoanOfferWithDetails extends Loan {
+interface LoanOfferWithDetails extends ProcessedLoan {
   formattedAmount: string;
   formattedCollateralAmount: string;
   formattedInterestRate: number;
@@ -49,35 +51,6 @@ interface LoanOfferWithDetails extends Loan {
   tokenInfo?: TokenInfo;
   collateralInfo?: TokenInfo;
 }
-
-// Helper function to convert API response to Loan type
-const convertApiResponseToLoan = (loanData: {
-  id: string;
-  lender: string;
-  borrower: string;
-  tokenAddress: string;
-  amount: string;
-  interestRate: string;
-  duration: string;
-  collateralAddress: string;
-  collateralAmount: string;
-  startTime: string;
-  status: number;
-}): Loan => {
-  return {
-    id: BigInt(loanData.id),
-    lender: loanData.lender,
-    borrower: loanData.borrower,
-    tokenAddress: loanData.tokenAddress,
-    amount: BigInt(loanData.amount),
-    interestRate: BigInt(loanData.interestRate),
-    duration: BigInt(loanData.duration),
-    collateralAddress: loanData.collateralAddress,
-    collateralAmount: BigInt(loanData.collateralAmount),
-    startTime: BigInt(loanData.startTime),
-    status: loanData.status,
-  };
-};
 
 // Function to fetch token information
 const fetchTokenInfo = async (
@@ -112,48 +85,45 @@ const fetchTokenInfo = async (
 
 export default function OffersPage() {
   const {
-    activeLoanOfferIds,
-    isLoadingOffers,
     acceptLoanOffer,
     cancelLoanOffer,
     transactionState,
-
     isConnected,
     address,
-    refetchOffers,
   } = useP2PLending();
 
-  const [loanOffers, setLoanOffers] = useState<LoanOfferWithDetails[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
+  // Use subgraph data instead of RPC calls
+  const {
+    loans: allLoans,
+    loading: isLoadingSubgraph,
+    error: subgraphError,
+  } = useAllLoansWithStatus();
 
-  // Fetch loan details for each active offer
+  const [loanOffers, setLoanOffers] = useState<LoanOfferWithDetails[]>([]);
+  const [isLoadingTokenInfo, setIsLoadingTokenInfo] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Process subgraph data and fetch token information
   useEffect(() => {
-    const fetchLoanDetails = async () => {
-      if (!activeLoanOfferIds || activeLoanOfferIds.length === 0) {
+    const processLoans = async () => {
+      if (!allLoans || allLoans.length === 0) {
         setLoanOffers([]);
         return;
       }
 
-      setIsLoadingDetails(true);
+      // Filter for pending loans only
+      const pendingLoans = allLoans.filter((loan) => loan.status === 0); // Pending status
+
+      if (pendingLoans.length === 0) {
+        setLoanOffers([]);
+        return;
+      }
+
+      setIsLoadingTokenInfo(true);
       try {
-        const loanPromises = activeLoanOfferIds.map(async (loanId) => {
+        const loanPromises = pendingLoans.map(async (loan) => {
           try {
-            const response = await fetch("/api/loan-details", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ loanId: loanId.toString() }),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to fetch loan details");
-            }
-
-            const loanData = await response.json();
-
-            // Convert string values back to BigInt for proper processing
-            const loan = convertApiResponseToLoan(loanData);
-
             // Fetch token information for both loan token and collateral
             const [tokenInfo, collateralInfo] = await Promise.all([
               fetchTokenInfo(loan.tokenAddress),
@@ -191,28 +161,27 @@ export default function OffersPage() {
 
             return formattedLoan;
           } catch (error) {
-            console.error(`Failed to fetch loan ${loanId}:`, error);
+            console.error(`Failed to process loan ${loan.id}:`, error);
             return null;
           }
         });
 
         const results = await Promise.all(loanPromises);
         const validLoans = results.filter(
-          (loan): loan is LoanOfferWithDetails =>
-            loan !== null && loan.status === LoanStatus.Pending
+          (loan): loan is LoanOfferWithDetails => loan !== null
         );
 
         setLoanOffers(validLoans);
       } catch (error) {
-        console.error("Failed to fetch loan details:", error);
+        console.error("Failed to process loan offers:", error);
         setLoanOffers([]);
       } finally {
-        setIsLoadingDetails(false);
+        setIsLoadingTokenInfo(false);
       }
     };
 
-    fetchLoanDetails();
-  }, [activeLoanOfferIds]);
+    processLoans();
+  }, [allLoans, refreshKey]);
 
   const handleAcceptOffer = async (loan: LoanOfferWithDetails) => {
     if (!address) {
@@ -228,8 +197,8 @@ export default function OffersPage() {
     try {
       setSelectedLoanId(loan.id);
       await acceptLoanOffer(loan.id, loan);
-      // Refresh the offers after successful acceptance
-      await refetchOffers();
+      // Refresh the data after successful acceptance
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to accept loan offer:", error);
     } finally {
@@ -251,13 +220,17 @@ export default function OffersPage() {
     try {
       setSelectedLoanId(loan.id);
       await cancelLoanOffer(loan.id);
-      // Refresh the offers after successful cancellation
-      await refetchOffers();
+      // Refresh the data after successful cancellation
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error("Failed to cancel loan offer:", error);
     } finally {
       setSelectedLoanId(null);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey((prev) => prev + 1);
   };
 
   const getStepStatus = (step: string) => {
@@ -299,8 +272,8 @@ export default function OffersPage() {
             status === "success"
               ? "text-green-700"
               : status === "error"
-              ? "text-red-700"
-              : "text-gray-700"
+                ? "text-red-700"
+                : "text-gray-700"
           }`}
         >
           {label}
@@ -308,30 +281,6 @@ export default function OffersPage() {
       </div>
     );
   };
-
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Loan Offers</CardTitle>
-            <CardDescription>
-              Connect your wallet to view and accept loan offers
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Please connect your wallet to Somnia L1 testnet to view loan
-                offers.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -342,7 +291,16 @@ export default function OffersPage() {
             Browse and accept loan offers from lenders on DreamLend
           </p>
         </div>
-        <Button onClick={() => refetchOffers()} variant="outline">
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          disabled={isLoadingSubgraph || isLoadingTokenInfo}
+        >
+          {isLoadingSubgraph || isLoadingTokenInfo ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
           Refresh Offers
         </Button>
       </div>
@@ -379,7 +337,16 @@ export default function OffersPage() {
         </Alert>
       )}
 
-      {isLoadingOffers || isLoadingDetails ? (
+      {subgraphError && (
+        <Alert className="mb-6" variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load loan data from subgraph: {subgraphError}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isLoadingSubgraph || isLoadingTokenInfo ? (
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
@@ -595,9 +562,9 @@ export default function OffersPage() {
                             selectedLoanId === loan.id
                               ? "Approving..."
                               : transactionState.step === "accepting" &&
-                                selectedLoanId === loan.id
-                              ? "Accepting..."
-                              : "Accept"}
+                                  selectedLoanId === loan.id
+                                ? "Accepting..."
+                                : "Accept"}
                           </Button>
                         )}
                       </TableCell>
