@@ -112,13 +112,19 @@ export function useSubgraphQuery<T>(query: string): UseSubgraphQueryState<T> {
 
         const result = await response.json();
         if (result.errors) {
-          throw new Error(result.errors.map((e: any) => e.message).join("\n"));
+          throw new Error(
+            result.errors.map((e: Error) => e.message).join("\n")
+          );
         }
 
         // The actual data is nested inside the 'data' property of the response
         setState({ data: result.data, loading: false, error: null });
-      } catch (err: any) {
-        setState({ data: null, loading: false, error: err.message });
+      } catch (err: unknown) {
+        setState({
+          data: null,
+          loading: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
         console.error("Failed to fetch from subgraph proxy:", err);
       }
     };
@@ -161,6 +167,27 @@ export const useLoanCreatedEvents = () => {
   return useSubgraphQuery<{ loanCreateds: LoanCreatedEvent[] }>(query);
 };
 
+export interface ProtocolStatsCollection {
+  totalLoansCreated: string;
+  totalLoanVolumeUSD: string;
+  totalLoanVolume: string;
+  id: string;
+}
+
+export const useProtocolStatsCollection = () => {
+  const query = `query protocolStatsCollection{
+  protocolStats_collection {
+    totalLoansCreated
+    totalLoanVolumeUSD
+    totalLoanVolume
+    id
+  }
+  
+}`;
+  return useSubgraphQuery<{
+    protocolStats_collection: ProtocolStatsCollection[];
+  }>(query);
+};
 // Hook to get LoanAccepted events
 export const useLoanAcceptedEvents = () => {
   const query = `{

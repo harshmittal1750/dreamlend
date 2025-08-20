@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./SomniaConfig.sol";
+import "./RewardsDistributor.sol";
 
 /**
  * @title DreamLend
@@ -69,6 +70,9 @@ contract DreamLend is ReentrancyGuard, Ownable {
     // Mapping to store price feed contracts for tokens
     mapping(address => AggregatorV3Interface) public tokenPriceFeeds;
 
+    // Rewards distributor contract for liquidity mining
+    RewardsDistributor public rewardsDistributor;
+
     // ============ Events ============
 
     event LoanCreated(
@@ -120,6 +124,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
         address indexed feedAddress
     );
 
+    event RewardsDistributorSet(
+        address indexed oldDistributor,
+        address indexed newDistributor
+    );
+
     // ============ Constructor ============
 
     constructor() Ownable(msg.sender) {
@@ -161,6 +170,23 @@ contract DreamLend is ReentrancyGuard, Ownable {
         require(_feedAddress != address(0), "Invalid feed address");
         tokenPriceFeeds[_tokenAddress] = AggregatorV3Interface(_feedAddress);
         emit PriceFeedSet(_tokenAddress, _feedAddress);
+    }
+
+    /**
+     * @notice Sets the rewards distributor contract for liquidity mining
+     * @dev Only callable by the contract owner
+     * @param _distributorAddress The address of the RewardsDistributor contract
+     */
+    function setRewardsDistributor(
+        address _distributorAddress
+    ) external onlyOwner {
+        require(
+            _distributorAddress != address(0),
+            "Invalid distributor address"
+        );
+        address oldDistributor = address(rewardsDistributor);
+        rewardsDistributor = RewardsDistributor(payable(_distributorAddress));
+        emit RewardsDistributorSet(oldDistributor, _distributorAddress);
     }
 
     /**
@@ -590,6 +616,12 @@ contract DreamLend is ReentrancyGuard, Ownable {
         loan.startTime = block.timestamp;
         loan.status = LoanStatus.Active;
 
+        // Start rewards for both lender and borrower if rewards distributor is set
+        if (address(rewardsDistributor) != address(0)) {
+            rewardsDistributor.startAccruingRewards(loan.lender, loan.amount);
+            rewardsDistributor.startAccruingRewards(msg.sender, loan.amount);
+        }
+
         // Remove from active loan offers array (gas efficient swap and pop)
         _removeLoanFromActiveOffers(loanId);
 
@@ -629,6 +661,12 @@ contract DreamLend is ReentrancyGuard, Ownable {
         uint256 interest = (annualizedAmount * timeElapsed) / 31557600; // 365.25 * 24 * 60 * 60 = 31557600 seconds per year
 
         uint256 totalRepayment = loan.amount + interest;
+
+        // Stop rewards for both lender and borrower BEFORE changing loan status
+        if (address(rewardsDistributor) != address(0)) {
+            rewardsDistributor.stopAccruingRewards(loan.lender, loan.amount);
+            rewardsDistributor.stopAccruingRewards(loan.borrower, loan.amount);
+        }
 
         // Transfer repayment from borrower to lender
         IERC20(loan.tokenAddress).safeTransferFrom(
@@ -684,6 +722,12 @@ contract DreamLend is ReentrancyGuard, Ownable {
             timeDefaulted || priceDefaulted,
             "Loan has not defaulted yet (time or price)"
         );
+
+        // Stop rewards for both lender and borrower BEFORE changing loan status
+        if (address(rewardsDistributor) != address(0)) {
+            rewardsDistributor.stopAccruingRewards(loan.lender, loan.amount);
+            rewardsDistributor.stopAccruingRewards(loan.borrower, loan.amount);
+        }
 
         // Calculate liquidator fee and remaining collateral for lender
         uint256 liquidatorFee = (loan.collateralAmount * LIQUIDATION_FEE_BPS) /

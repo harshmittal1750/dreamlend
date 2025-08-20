@@ -1,5 +1,4 @@
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import { mainnet, arbitrum } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
 

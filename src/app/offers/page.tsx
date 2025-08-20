@@ -23,7 +23,12 @@ import {
 import { useP2PLending } from "@/hooks/useP2PLending";
 import { Loan, LoanStatus } from "@/lib/contracts";
 import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
-import { useAllLoansWithStatus, ProcessedLoan } from "@/hooks/useSubgraphQuery";
+import {
+  useAllLoansWithStatus,
+  ProcessedLoan,
+  useProtocolStatsCollection,
+} from "@/hooks/useSubgraphQuery";
+import { useRewards } from "@/hooks/useRewards";
 import {
   CheckCircle,
   AlertCircle,
@@ -33,6 +38,8 @@ import {
   Calendar,
   Shield,
   RefreshCw,
+  Gift,
+  TrendingUp,
 } from "lucide-react";
 import { ethers } from "ethers";
 
@@ -99,11 +106,20 @@ export default function OffersPage() {
     error: subgraphError,
   } = useAllLoansWithStatus();
 
+  // Get rewards data
+  const {
+    currentRewardsAPR,
+    formatAPR,
+    rewardsSystemAvailable,
+    globalRewardStats,
+  } = useRewards();
+
   const [loanOffers, setLoanOffers] = useState<LoanOfferWithDetails[]>([]);
   const [isLoadingTokenInfo, setIsLoadingTokenInfo] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-
+  const { data: protocolStats, loading: isLoadingProtocolStats } =
+    useProtocolStatsCollection();
   // Process subgraph data and fetch token information
   useEffect(() => {
     const processLoans = async () => {
@@ -233,6 +249,20 @@ export default function OffersPage() {
     setRefreshKey((prev) => prev + 1);
   };
 
+  // Calculate rewards APR for display
+  const calculateRewardsAPR = () => {
+    if (!rewardsSystemAvailable || !currentRewardsAPR || !globalRewardStats) {
+      return "0.00";
+    }
+    return formatAPR(currentRewardsAPR);
+  };
+
+  // const calculateTotalAPR = (interestRate: bigint) => {
+  //   const interestAPR = parseFloat((Number(interestRate) / 100).toFixed(2));
+  //   const rewardsAPR = parseFloat(calculateRewardsAPR());
+  //   return (interestAPR + rewardsAPR).toFixed(2);
+  // };
+
   const getStepStatus = (step: string) => {
     if (transactionState.step === step && transactionState.isLoading) {
       return "loading";
@@ -258,22 +288,24 @@ export default function OffersPage() {
     return (
       <div className="flex items-center space-x-2">
         {status === "loading" && (
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
         )}
         {status === "success" && (
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <CheckCircle className="h-4 w-4 text-success" />
         )}
-        {status === "error" && <AlertCircle className="h-4 w-4 text-red-500" />}
+        {status === "error" && (
+          <AlertCircle className="h-4 w-4 text-destructive" />
+        )}
         {status === "idle" && (
-          <div className="h-4 w-4 rounded-full border-2 border-gray-300" />
+          <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
         )}
         <span
           className={`text-sm ${
             status === "success"
-              ? "text-green-700"
+              ? "text-success"
               : status === "error"
-                ? "text-red-700"
-                : "text-gray-700"
+                ? "text-destructive"
+                : "text-muted-foreground"
           }`}
         >
           {label}
@@ -287,7 +319,7 @@ export default function OffersPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Available Loan Offers</h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-muted-foreground mt-2">
             Browse and accept loan offers from lenders on DreamLend
           </p>
         </div>
@@ -312,7 +344,7 @@ export default function OffersPage() {
             <div className="space-y-2">
               {renderStepIndicator("approving", "Approve Collateral Token")}
               <div className="flex items-center justify-center">
-                <Clock className="h-4 w-4 text-gray-400" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
               </div>
               {renderStepIndicator("accepting", "Accept Loan Offer")}
             </div>
@@ -329,7 +361,7 @@ export default function OffersPage() {
 
       {transactionState.isSuccess && (
         <Alert className="mb-6" variant="default">
-          <CheckCircle className="h-4 w-4 text-green-500" />
+          <CheckCircle className="h-4 w-4 text-success" />
           <AlertDescription>
             Loan offer accepted successfully! Transaction hash:{" "}
             {transactionState.hash?.slice(0, 10)}...
@@ -366,11 +398,11 @@ export default function OffersPage() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="py-8">
-              <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
                 No Active Loan Offers
               </h3>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 There are currently no active loan offers available. Check back
                 later or create your own!
               </p>
@@ -384,17 +416,21 @@ export default function OffersPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium">Total Available</span>
+                  <DollarSign className="h-4 w-4 text-success" />
+                  <span className="text-sm font-medium">Total Volume</span>
                 </div>
                 <p className="text-2xl font-bold">
-                  {loanOffers
+                  {/* {loanOffers
                     .reduce(
                       (sum, loan) => sum + parseFloat(loan.formattedAmount),
                       0
                     )
-                    .toFixed(2)}{" "}
-                  Total Value
+                    .toFixed(2)}{" "} */}
+                  {Number(
+                    protocolStats?.protocolStats_collection?.[0]
+                      ?.totalLoanVolumeUSD
+                  ).toFixed(2)}{" "}
+                  $
                 </p>
               </CardContent>
             </Card>
@@ -402,7 +438,7 @@ export default function OffersPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-blue-500" />
+                  <Clock className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">Average Duration</span>
                 </div>
                 <p className="text-2xl font-bold">
@@ -420,158 +456,254 @@ export default function OffersPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-purple-500" />
+                  <Shield className="h-4 w-4 text-accent" />
                   <span className="text-sm font-medium">Active Offers</span>
                 </div>
-                <p className="text-2xl font-bold">{loanOffers.length}</p>
+                <p className="text-2xl font-bold">
+                  {
+                    protocolStats?.protocolStats_collection?.[0]
+                      ?.totalLoansCreated
+                  }
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Offers Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Offers</CardTitle>
-              <CardDescription>
-                Click &quot;Accept&quot; to accept a loan offer. You&apos;ll
-                need to approve collateral tokens first.
-              </CardDescription>
+          {/* Premium Offers Table */}
+          <Card className="luxury-shadow-lg glass">
+            <CardHeader className="gradient-bg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-semibold">
+                      Available Loan Offers
+                    </CardTitle>
+                    <CardDescription>
+                      {loanOffers.length} premium loan offer
+                      {loanOffers.length !== 1 ? "s" : ""} available
+                    </CardDescription>
+                  </div>
+                </div>
+                {/* {rewardsSystemAvailable && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-accent/10 to-primary/10 dark:from-accent/5 dark:to-primary/5 border border-accent/20 dark:border-accent/10">
+                    <Gift className="h-4 w-4 text-accent" />
+                    <span className="text-sm font-medium text-accent-foreground">
+                      +{calculateRewardsAPR()}% Rewards APR
+                    </span>
+                  </div>
+                )} */}
+              </div>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Loan ID</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>APR</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Collateral Required</TableHead>
-                    <TableHead>Lender</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loanOffers.map((loan) => (
-                    <TableRow key={loan.id.toString()}>
-                      <TableCell className="font-medium">
-                        #{loan.id.toString()}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {parseFloat(loan.formattedAmount).toFixed(4)}{" "}
-                            {loan.tokenInfo?.symbol || "Tokens"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {loan.tokenInfo?.name ||
-                              `${loan.tokenAddress.slice(
-                                0,
-                                6
-                              )}...${loan.tokenAddress.slice(-4)}`}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {loan.formattedInterestRate.toFixed(2)}%
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
+            <CardContent className="p-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border/50 hover:bg-muted/30">
+                      {/* <TableHead className="font-semibold text-muted-foreground">
+                        Loan ID
+                      </TableHead> */}
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Amount
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Interest APR
+                      </TableHead>
+                      {/* {rewardsSystemAvailable && (
+                        <TableHead className="font-semibold text-muted-foreground">
+                          <div className="flex items-center space-x-1">
+                            <Gift className="h-3 w-3 text-accent" />
+                            <span>Rewards APR</span>
+                          </div>
+                        </TableHead>
+                      )} */}
+                      {/* <TableHead className="font-semibold text-muted-foreground">
                         <div className="flex items-center space-x-1">
-                          <Calendar className="h-3 w-3 text-gray-500" />
-                          <span>{Math.round(loan.formattedDuration)} days</span>
+                          <TrendingUp className="h-3 w-3 text-success" />
+                          <span>Total APR</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {parseFloat(loan.formattedCollateralAmount).toFixed(
-                              4
-                            )}{" "}
-                            {loan.collateralInfo?.symbol || "Tokens"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {loan.collateralInfo?.name ||
-                              `${loan.collateralAddress.slice(
-                                0,
-                                6
-                              )}...${loan.collateralAddress.slice(-4)}`}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-mono">
-                          {loan.lender.slice(0, 6)}...{loan.lender.slice(-4)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            loan.status === LoanStatus.Pending
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {loan.statusText}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {loan.lender.toLowerCase() ===
-                        address?.toLowerCase() ? (
-                          <div className="space-y-2">
-                            <Badge variant="outline">Your Offer</Badge>
+                      </TableHead> */}
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Duration
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Collateral Required
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Lender
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Status
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Action
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loanOffers.map((loan, index) => (
+                      <TableRow
+                        key={loan.id.toString()}
+                        className={`
+                          border-border/30 hover:bg-gradient-to-r hover:from-primary/5 hover:to-accent/5 
+                          transition-all duration-300 group
+                          ${index % 2 === 0 ? "bg-muted/20" : "bg-background"}
+                        `}
+                      >
+                        {/* <TableCell className="font-medium font-mono text-sm">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-accent"></div>
+                            <span>#{loan.id.toString()}</span>
+                          </div>
+                        </TableCell> */}
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="font-semibold text-foreground">
+                              {parseFloat(loan.formattedAmount).toFixed(4)}{" "}
+                              <span className="text-primary font-medium">
+                                {loan.tokenInfo?.symbol || "Tokens"}
+                              </span>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {loan.tokenInfo?.name ||
+                                `${loan.tokenAddress.slice(0, 6)}...${loan.tokenAddress.slice(-4)}`}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/5 dark:to-primary/3 text-primary border-primary/20 dark:border-primary/10"
+                          >
+                            {loan.formattedInterestRate.toFixed(2)}%
+                          </Badge>
+                        </TableCell>
+                        {/* {rewardsSystemAvailable && (
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="bg-gradient-to-r from-accent-foreground/10 to-accent-foreground/5 dark:from-accent-foreground/5 dark:to-accent-foreground/3 text-accent-foreground border-accent-foreground/20 dark:border-accent-foreground/10"
+                            >
+                              <Gift className="h-3 w-3 mr-1" />+
+                              {calculateRewardsAPR()}%
+                            </Badge>
+                          </TableCell>
+                        )} */}
+                        {/* <TableCell>
+                          <Badge className="bg-gradient-to-r from-success to-success/80 text-success-foreground font-semibold shadow-sm">
+                            {calculateTotalAPR(loan.interestRate)}%
+                          </Badge>
+                        </TableCell> */}
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-3 w-3 text-warning" />
+                            <span className="font-medium">
+                              {Math.round(loan.formattedDuration)} days
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="font-semibold text-foreground">
+                              {parseFloat(
+                                loan.formattedCollateralAmount
+                              ).toFixed(4)}{" "}
+                              <span className="text-primary font-medium">
+                                {loan.collateralInfo?.symbol || "Tokens"}
+                              </span>
+                            </p>
+                            <p className="text-xs text-foreground">
+                              {loan.collateralInfo?.name ||
+                                `${loan.collateralAddress.slice(0, 6)}...${loan.collateralAddress.slice(-4)}`}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-mono px-2 py-1 rounded-md bg-muted text-muted-foreground">
+                            {loan.lender.slice(0, 6)}...{loan.lender.slice(-4)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              loan.status === LoanStatus.Pending
+                                ? "default"
+                                : "secondary"
+                            }
+                            className={
+                              loan.status === LoanStatus.Pending
+                                ? "status-dot success"
+                                : ""
+                            }
+                          >
+                            {loan.statusText}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {loan.lender.toLowerCase() ===
+                          address?.toLowerCase() ? (
+                            <div className="space-y-2">
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-gradient-to-r from-warning/10 to-warning/5 dark:from-warning/5 dark:to-warning/3 text-warning border-warning/20 dark:border-warning/10"
+                              >
+                                Your Offer
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleCancelOffer(loan)}
+                                disabled={
+                                  transactionState.isLoading ||
+                                  loan.status !== LoanStatus.Pending ||
+                                  (selectedLoanId !== null &&
+                                    selectedLoanId !== loan.id)
+                                }
+                                className=" ml-6 btn-premium"
+                              >
+                                {transactionState.isLoading &&
+                                  selectedLoanId === loan.id && (
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  )}
+                                {transactionState.step === "cancelling" &&
+                                selectedLoanId === loan.id
+                                  ? "Cancelling..."
+                                  : "Cancel Offer"}
+                              </Button>
+                            </div>
+                          ) : (
                             <Button
                               size="sm"
-                              variant="destructive"
-                              onClick={() => handleCancelOffer(loan)}
+                              onClick={() => handleAcceptOffer(loan)}
                               disabled={
                                 transactionState.isLoading ||
                                 loan.status !== LoanStatus.Pending ||
                                 (selectedLoanId !== null &&
                                   selectedLoanId !== loan.id)
                               }
-                              // className="w-full"
+                              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground btn-premium shadow-sm"
                             >
                               {transactionState.isLoading &&
                                 selectedLoanId === loan.id && (
                                   <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                                 )}
-                              {transactionState.step === "cancelling" &&
+                              {transactionState.step === "approving" &&
                               selectedLoanId === loan.id
-                                ? "Cancelling..."
-                                : "Cancel Offer"}
+                                ? "Approving..."
+                                : transactionState.step === "accepting" &&
+                                    selectedLoanId === loan.id
+                                  ? "Accepting..."
+                                  : "Accept"}
                             </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleAcceptOffer(loan)}
-                            disabled={
-                              transactionState.isLoading ||
-                              loan.status !== LoanStatus.Pending ||
-                              (selectedLoanId !== null &&
-                                selectedLoanId !== loan.id)
-                            }
-                          >
-                            {transactionState.isLoading &&
-                              selectedLoanId === loan.id && (
-                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                              )}
-                            {transactionState.step === "approving" &&
-                            selectedLoanId === loan.id
-                              ? "Approving..."
-                              : transactionState.step === "accepting" &&
-                                  selectedLoanId === loan.id
-                                ? "Accepting..."
-                                : "Accept"}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
