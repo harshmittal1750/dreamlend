@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { ethersAdapter, projectId, networks } from '@/config'
-import { createAppKit } from '@reown/appkit/react'
-import React, { type ReactNode } from 'react'
+import { ethersAdapter, projectId, networks } from "@/config";
+import { createAppKit } from "@reown/appkit/react";
+import React, { type ReactNode } from "react";
 
 if (!projectId) {
-  throw new Error('Project ID is not defined')
+  throw new Error("Project ID is not defined");
 }
 
 // Set up metadata
 const metadata = {
-  name: 'next-reown-appkit',
-  description: 'next-reown-appkit',
-  url: 'https://github.com/0xonerb/next-reown-appkit-ssr', // origin must match your domain & subdomain
-  icons: ['https://avatars.githubusercontent.com/u/179229932']
-}
+  name: "next-reown-appkit",
+  description: "next-reown-appkit",
+  url: "https://github.com/0xonerb/next-reown-appkit-ssr", // origin must match your domain & subdomain
+  icons: ["https://avatars.githubusercontent.com/u/179229932"],
+};
 
 // Create the modal
 export const modal = createAppKit({
@@ -22,19 +22,21 @@ export const modal = createAppKit({
   projectId,
   networks,
   metadata,
-  themeMode: 'light',
+  chainImages: {
+    50312: "https://somnia.network/images/branding/somnia_logo_color.png",
+  },
+
+  themeMode: "light",
   features: {
-    analytics: true // Optional - defaults to your Cloud configuration
+    analytics: true, // Optional - defaults to your Cloud configuration
   },
   themeVariables: {
-    '--w3m-accent': '#000000',
-  }
-})
+    "--w3m-accent": "#000000",
+  },
+});
 
-function ContextProvider({ children }: { children: ReactNode}) {
-  return (
-    <>{children}</>
-  )
+function ContextProvider({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }
 
-export default ContextProvider
+export default ContextProvider;

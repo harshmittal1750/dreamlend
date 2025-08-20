@@ -1,5 +1,4 @@
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import { mainnet, arbitrum } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
 
@@ -21,9 +20,6 @@ const somniaTestnet: AppKitNetwork = {
   testnet: SOMNIA_TESTNET_CONFIG.testnet,
 };
 
-export const networks = [somniaTestnet, mainnet, arbitrum] as [
-  AppKitNetwork,
-  ...AppKitNetwork[]
-];
+export const networks = [somniaTestnet] as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const ethersAdapter = new EthersAdapter();
