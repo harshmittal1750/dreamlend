@@ -22,6 +22,9 @@ export interface LoanCreatedEvent {
   minCollateralRatioBPS: string;
   tokenAddress: string;
   transactionHash: string;
+  // Historical price data from when loan was created
+  priceUSD: string; // Price of loan token at creation time
+  amountUSD: string; // USD value of loan amount at creation time
 }
 
 export interface LoanAcceptedEvent {
@@ -162,6 +165,8 @@ export const useLoanCreatedEvents = () => {
       minCollateralRatioBPS
       tokenAddress
       transactionHash
+      priceUSD
+      amountUSD
     }
   }`;
   return useSubgraphQuery<{ loanCreateds: LoanCreatedEvent[] }>(query);
@@ -249,6 +254,9 @@ export interface ProcessedLoan {
   collateralAmount: bigint;
   startTime: bigint;
   status: number; // 0=Pending, 1=Active, 2=Repaid, 3=Defaulted, 4=Cancelled
+  // Historical price data from loan creation
+  historicalPriceUSD?: string; // Price of loan token when created
+  historicalAmountUSD?: string; // USD value of loan amount when created
 }
 
 // Determine loan status based on events
@@ -260,20 +268,24 @@ export const determineLoanStatus = (
   cancelledEvents: LoanOfferCancelledEvent[],
   removedEvents: LoanOfferRemovedEvent[]
 ): number => {
-  // Check if cancelled
-  if (cancelledEvents.some((e) => e.loanId === loanId)) return 4; // Cancelled
-
-  // Check if removed
-  if (removedEvents.some((e) => e.loanId === loanId)) return 4; // Cancelled
-
-  // Check if liquidated
-  if (liquidatedEvents.some((e) => e.loanId === loanId)) return 3; // Defaulted
-
-  // Check if repaid
+  // Check if repaid first (final state)
   if (repaidEvents.some((e) => e.loanId === loanId)) return 2; // Repaid
 
-  // Check if accepted
+  // Check if liquidated (final state)
+  if (liquidatedEvents.some((e) => e.loanId === loanId)) return 3; // Defaulted
+
+  // Check if accepted (active state)
   if (acceptedEvents.some((e) => e.loanId === loanId)) return 1; // Active
+
+  // Check if explicitly cancelled by lender
+  if (cancelledEvents.some((e) => e.loanId === loanId)) return 4; // Cancelled
+
+  // LoanOfferRemoved can happen for both accepted and cancelled loans
+  // Only treat as cancelled if there's no accepted event
+  if (removedEvents.some((e) => e.loanId === loanId)) {
+    // If there was no accepted event, it was likely cancelled
+    return 4; // Cancelled
+  }
 
   // Otherwise it's pending
   return 0; // Pending
@@ -318,6 +330,9 @@ export const processLoansFromSubgraph = (
       collateralAmount: BigInt(loan.collateralAmount),
       startTime: BigInt(startTime),
       status,
+      // Include historical price data
+      historicalPriceUSD: loan.priceUSD,
+      historicalAmountUSD: loan.amountUSD,
     };
   });
 };

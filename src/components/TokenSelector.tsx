@@ -57,7 +57,9 @@ export function TokenSelector({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="token-selector">{label}</Label>
+      <Label htmlFor="token-selector" className="text-base font-medium">
+        {label}
+      </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button

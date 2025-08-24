@@ -375,10 +375,10 @@ export default function CreateLoanOfferPage() {
             status === "success"
               ? "text-green-600"
               : status === "error"
-              ? "text-red-600"
-              : status === "loading"
-              ? "text-primary"
-              : "text-muted-foreground"
+                ? "text-red-600"
+                : status === "loading"
+                  ? "text-primary"
+                  : "text-muted-foreground"
           }`}
         >
           {label}
@@ -408,7 +408,7 @@ export default function CreateLoanOfferPage() {
   //             Wallet Connection Required
   //           </CardTitle>
   //           <CardDescription className="text-lg">
-  //             Connect your wallet to Somnia L1 testnet to create premium loan
+  //             Connect your wallet to Somnia L1 testnet to create loan
   //             offers
   //           </CardDescription>
   //         </CardHeader>
@@ -699,13 +699,13 @@ export default function CreateLoanOfferPage() {
               selectedLoanToken &&
               selectedCollateralToken &&
               formData.amount && (
-                <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                <Card className="glass luxury-shadow-lg border-primary/20 gradient-bg">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <CardTitle className="text-xl flex items-center">
-                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                            <Info className="h-5 w-5 text-green-600" />
+                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                            <Info className="h-5 w-5 text-primary" />
                           </div>
                           Live Oracle Pricing & Collateral Calculator
                         </CardTitle>
@@ -720,7 +720,7 @@ export default function CreateLoanOfferPage() {
                         size="sm"
                         onClick={refreshPrices}
                         disabled={calcLoading}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 btn-premium"
                       >
                         <RefreshCw
                           className={`h-4 w-4 ${
@@ -734,30 +734,30 @@ export default function CreateLoanOfferPage() {
                   <CardContent className="space-y-6">
                     {/* Current Market Prices */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             {selectedLoanToken.symbol} Price
                           </span>
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-2 h-2 rounded-full ${
+                              className={`w-2 h-2 rounded-full status-dot ${
                                 prices.get(selectedLoanToken.address)?.isStale
-                                  ? "bg-red-400"
-                                  : "bg-green-400"
+                                  ? "error"
+                                  : "success"
                               }`}
                             />
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {prices.get(selectedLoanToken.address)?.isStale
                                 ? "Stale"
                                 : "Live"}
                             </span>
                           </div>
                         </div>
-                        <div className="text-2xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-primary">
                           ${collateralCalc.priceImpact.loanTokenPriceUSD}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Updated:{" "}
                           {new Date(
                             (prices.get(selectedLoanToken.address)?.updatedAt ||
@@ -766,21 +766,21 @@ export default function CreateLoanOfferPage() {
                         </div>
                       </div>
 
-                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             {selectedCollateralToken.symbol} Price
                           </span>
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-2 h-2 rounded-full ${
+                              className={`w-2 h-2 rounded-full status-dot ${
                                 prices.get(selectedCollateralToken.address)
                                   ?.isStale
-                                  ? "bg-red-400"
-                                  : "bg-green-400"
+                                  ? "error"
+                                  : "success"
                               }`}
                             />
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {prices.get(selectedCollateralToken.address)
                                 ?.isStale
                                 ? "Stale"
@@ -788,10 +788,10 @@ export default function CreateLoanOfferPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="text-2xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-primary">
                           ${collateralCalc.priceImpact.collateralTokenPriceUSD}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Updated:{" "}
                           {new Date(
                             (prices.get(selectedCollateralToken.address)
@@ -802,12 +802,12 @@ export default function CreateLoanOfferPage() {
                     </div>
 
                     {/* Exchange Rate */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-secondary/50 border border-secondary rounded-lg p-4 luxury-shadow">
                       <div className="text-center">
-                        <div className="text-sm font-medium text-blue-800 mb-1">
+                        <div className="text-sm font-medium text-secondary-foreground mb-1">
                           Exchange Rate
                         </div>
-                        <div className="text-xl font-bold text-blue-600">
+                        <div className="text-xl font-bold text-primary">
                           1 {selectedLoanToken.symbol} ={" "}
                           {collateralCalc.priceImpact.exchangeRate}{" "}
                           {selectedCollateralToken.symbol}
@@ -816,29 +816,29 @@ export default function CreateLoanOfferPage() {
                     </div>
 
                     {/* Minimum Collateral Required */}
-                    <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+                    <div className="bg-gradient-to-r from-accent/30 to-destructive/20 border border-destructive/30 rounded-lg p-4 luxury-shadow">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-5 w-5 text-orange-600" />
-                          <span className="font-semibold text-orange-800">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
+                          <span className="font-semibold text-destructive-foreground">
                             Minimum Collateral Required
                           </span>
                         </div>
-                        <span className="text-sm text-orange-600 font-medium">
+                        <span className="text-sm text-destructive font-medium">
                           {collateralCalc.minRatio}% Ratio
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <div className="text-sm text-orange-700 mb-1">
+                          <div className="text-sm text-muted-foreground mb-1">
                             For {formData.amount} {selectedLoanToken.symbol}
                           </div>
-                          <div className="text-2xl font-bold text-orange-600">
+                          <div className="text-2xl font-bold text-destructive">
                             {collateralCalc.minCollateralAmount}{" "}
                             {selectedCollateralToken.symbol}
                           </div>
-                          <div className="text-sm text-orange-600">
+                          <div className="text-sm text-muted-foreground">
                             ≈ {collateralCalc.priceImpact.minCollateralValueUSD}
                           </div>
                         </div>
@@ -846,14 +846,14 @@ export default function CreateLoanOfferPage() {
                         {formData.collateralAmount &&
                           parseFloat(formData.collateralAmount) > 0 && (
                             <div>
-                              <div className="text-sm text-gray-700 mb-1">
+                              <div className="text-sm text-muted-foreground mb-1">
                                 Your Collateral Amount
                               </div>
                               <div
                                 className={`text-2xl font-bold ${
                                   collateralCalc.isHealthy
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                    ? "text-primary"
+                                    : "text-destructive"
                                 }`}
                               >
                                 {formData.collateralAmount}{" "}
@@ -861,17 +861,17 @@ export default function CreateLoanOfferPage() {
                               </div>
                               <div className="flex items-center gap-2 text-sm">
                                 <div
-                                  className={`w-2 h-2 rounded-full ${
+                                  className={`w-2 h-2 rounded-full status-dot ${
                                     collateralCalc.isHealthy
-                                      ? "bg-green-400"
-                                      : "bg-red-400"
+                                      ? "success"
+                                      : "error"
                                   }`}
                                 />
                                 <span
                                   className={
                                     collateralCalc.isHealthy
-                                      ? "text-green-600"
-                                      : "text-red-600"
+                                      ? "text-primary"
+                                      : "text-destructive"
                                   }
                                 >
                                   {collateralCalc.currentRatio}% Ratio{" "}
@@ -885,7 +885,7 @@ export default function CreateLoanOfferPage() {
                       </div>
 
                       {/* Auto-fill button */}
-                      <div className="mt-4 pt-4 border-t border-orange-200">
+                      <div className="mt-4 pt-4 border-t border-border">
                         <Button
                           type="button"
                           variant="outline"
@@ -895,7 +895,7 @@ export default function CreateLoanOfferPage() {
                               collateralCalc.minCollateralAmount
                             );
                           }}
-                          className="w-full bg-white hover:bg-orange-50 border-orange-300 text-orange-700"
+                          className="w-full btn-premium bg-card hover:bg-accent border-border text-foreground"
                         >
                           Auto-fill Minimum Collateral (
                           {collateralCalc.minCollateralAmount}{" "}
@@ -908,24 +908,24 @@ export default function CreateLoanOfferPage() {
                     {formData.collateralAmount &&
                       parseFloat(formData.collateralAmount) > 0 && (
                         <div
-                          className={`border rounded-lg p-4 ${
+                          className={`border rounded-lg p-4 luxury-shadow ${
                             collateralCalc.isHealthy
-                              ? "bg-green-50 border-green-200"
-                              : "bg-red-50 border-red-200"
+                              ? "bg-primary/5 border-primary/20"
+                              : "bg-destructive/5 border-destructive/20"
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             {collateralCalc.isHealthy ? (
-                              <CheckCircle className="h-6 w-6 text-green-600" />
+                              <CheckCircle className="h-6 w-6 text-primary" />
                             ) : (
-                              <AlertTriangle className="h-6 w-6 text-red-600" />
+                              <AlertTriangle className="h-6 w-6 text-destructive" />
                             )}
                             <div>
                               <div
                                 className={`font-semibold ${
                                   collateralCalc.isHealthy
-                                    ? "text-green-800"
-                                    : "text-red-800"
+                                    ? "text-primary"
+                                    : "text-destructive"
                                 }`}
                               >
                                 {collateralCalc.isHealthy
@@ -935,8 +935,8 @@ export default function CreateLoanOfferPage() {
                               <div
                                 className={`text-sm ${
                                   collateralCalc.isHealthy
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                    ? "text-primary/80"
+                                    : "text-destructive/80"
                                 }`}
                               >
                                 Current ratio: {collateralCalc.currentRatio}% |
@@ -951,8 +951,8 @@ export default function CreateLoanOfferPage() {
 
                     {calcLoading && (
                       <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                        <span className="text-sm text-gray-600">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                        <span className="text-sm text-muted-foreground">
                           Calculating collateral requirements...
                         </span>
                       </div>
@@ -967,65 +967,65 @@ export default function CreateLoanOfferPage() {
               selectedCollateralToken && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Info className="h-5 w-5 text-blue-500" />
+                    <Info className="h-5 w-5 text-primary" />
                     Risk Management Parameters
                   </h3>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                  <div className="bg-secondary/30 border border-secondary rounded-lg p-4 space-y-3 luxury-shadow">
+                    <div className="flex items-center gap-2 text-sm font-medium text-secondary-foreground">
                       <Info className="h-4 w-4" />
                       Recommended settings for {selectedLoanToken.symbol} →{" "}
                       {selectedCollateralToken.symbol}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="bg-white rounded p-3 border border-blue-200">
-                        <div className="font-medium text-gray-700">
+                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                        <div className="font-medium text-foreground">
                           Min Collateral Ratio
                         </div>
-                        <div className="text-lg font-bold text-blue-600">
+                        <div className="text-lg font-bold text-primary">
                           {formatBasisPoints(
                             recommendedParams.minCollateralRatio
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Required at loan acceptance
                         </div>
                       </div>
 
-                      <div className="bg-white rounded p-3 border border-blue-200">
-                        <div className="font-medium text-gray-700">
+                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                        <div className="font-medium text-foreground">
                           Liquidation Threshold
                         </div>
-                        <div className="text-lg font-bold text-orange-600">
+                        <div className="text-lg font-bold text-destructive">
                           {formatBasisPoints(
                             recommendedParams.liquidationThreshold
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Liquidation trigger point
                         </div>
                       </div>
 
-                      <div className="bg-white rounded p-3 border border-blue-200">
-                        <div className="font-medium text-gray-700">
+                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                        <div className="font-medium text-foreground">
                           Price Staleness
                         </div>
-                        <div className="text-lg font-bold text-purple-600">
+                        <div className="text-lg font-bold text-accent-foreground">
                           {formatDuration(recommendedParams.maxPriceStaleness)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           Max oracle age allowed
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                      <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start gap-2 p-3 bg-accent/20 border border-accent rounded text-sm luxury-shadow">
+                      <AlertTriangle className="h-4 w-4 text-accent-foreground mt-0.5 flex-shrink-0" />
                       <div>
-                        <div className="font-medium text-yellow-800">
+                        <div className="font-medium text-accent-foreground">
                           Risk Assessment
                         </div>
-                        <div className="text-yellow-700">
+                        <div className="text-muted-foreground">
                           Based on volatility: {selectedLoanToken.symbol} (
                           {selectedLoanToken.volatilityTier}) lending{" "}
                           {selectedCollateralToken.symbol} (

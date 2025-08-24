@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -21,7 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useP2PLending } from "@/hooks/useP2PLending";
-import { Loan, LoanStatus } from "@/lib/contracts";
+import { LoanStatus } from "@/lib/contracts";
+import { useAllLoansWithStatus, ProcessedLoan } from "@/hooks/useSubgraphQuery";
+import {
+  useLivePriceComparison,
+  LoanWithPriceComparison,
+} from "@/hooks/useLivePriceComparison";
 import {
   CheckCircle,
   AlertCircle,
@@ -31,8 +36,10 @@ import {
   Shield,
   TrendingUp,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { ethers } from "ethers";
+import { getTokenByAddress } from "@/config/tokens";
 
 interface TokenInfo {
   name: string;
@@ -40,7 +47,7 @@ interface TokenInfo {
   decimals: number;
 }
 
-interface LoanWithDetails extends Loan {
+interface LoanWithDetails extends LoanWithPriceComparison {
   formattedAmount: string;
   formattedCollateralAmount: string;
   formattedInterestRate: number;
@@ -55,108 +62,75 @@ interface LoanWithDetails extends Loan {
   collateralInfo?: TokenInfo;
 }
 
-// Helper function to convert API response to Loan type
-const convertApiResponseToLoan = (loanData: {
-  id: string;
-  lender: string;
-  borrower: string;
-  tokenAddress: string;
-  amount: string;
-  interestRate: string;
-  duration: string;
-  collateralAddress: string;
-  collateralAmount: string;
-  startTime: string;
-  status: number;
-}): Loan => {
-  return {
-    id: BigInt(loanData.id),
-    lender: loanData.lender,
-    borrower: loanData.borrower,
-    tokenAddress: loanData.tokenAddress,
-    amount: BigInt(loanData.amount),
-    interestRate: BigInt(loanData.interestRate),
-    duration: BigInt(loanData.duration),
-    collateralAddress: loanData.collateralAddress,
-    collateralAmount: BigInt(loanData.collateralAmount),
-    startTime: BigInt(loanData.startTime),
-    status: loanData.status,
-  };
-};
-
-// Function to fetch token information
-const fetchTokenInfo = async (
-  tokenAddress: string
-): Promise<TokenInfo | null> => {
-  try {
-    const provider = new ethers.JsonRpcProvider(
-      "https://dream-rpc.somnia.network"
-    );
-    const tokenContract = new ethers.Contract(
-      tokenAddress,
-      [
-        "function name() view returns (string)",
-        "function symbol() view returns (string)",
-        "function decimals() view returns (uint8)",
-      ],
-      provider
-    );
-
-    const [name, symbol, decimals] = await Promise.all([
-      tokenContract.name(),
-      tokenContract.symbol(),
-      tokenContract.decimals(),
-    ]);
-
-    return { name, symbol, decimals: Number(decimals) };
-  } catch (error) {
-    console.error(`Failed to fetch token info for ${tokenAddress}:`, error);
-    return null;
-  }
-};
-
 export default function MyLoansPage() {
   const {
-    lenderLoans,
-    borrowerLoans,
-    isLoadingLenderLoans,
-    isLoadingBorrowerLoans,
     repayLoan,
     liquidateLoan,
     cancelLoanOffer,
     transactionState,
-
     isConnected,
     address,
-    refetchLenderLoans,
-    refetchBorrowerLoans,
     calculateTotalRepayment,
     calculateInterest,
     isLoanDefaulted,
   } = useP2PLending();
 
-  const [lenderLoanDetails, setLenderLoanDetails] = useState<LoanWithDetails[]>(
-    []
-  );
-  const [borrowerLoanDetails, setBorrowerLoanDetails] = useState<
-    LoanWithDetails[]
-  >([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  // Use subgraph data instead of RPC calls
+  const {
+    loans: allLoans,
+    loading: isLoadingSubgraph,
+    error: subgraphError,
+  } = useAllLoansWithStatus();
+
+  // Filter loans by user role
+  const lenderLoans = React.useMemo(() => {
+    if (!address) return [];
+    return allLoans.filter(
+      (loan) => loan.lender.toLowerCase() === address.toLowerCase()
+    );
+  }, [allLoans, address]);
+
+  const borrowerLoans = React.useMemo(() => {
+    if (!address) return [];
+    return allLoans.filter(
+      (loan) => loan.borrower.toLowerCase() === address.toLowerCase()
+    );
+  }, [allLoans, address]);
+
+  // Get live price comparison data
+  const {
+    loans: lenderLoansWithPrices,
+    loading: isLoadingLenderPrices,
+    refreshPrices: refreshLenderPrices,
+  } = useLivePriceComparison(lenderLoans, {
+    refreshInterval: 120000, // 2 minutes
+    enableAutoRefresh: true,
+  });
+
+  const {
+    loans: borrowerLoansWithPrices,
+    loading: isLoadingBorrowerPrices,
+    refreshPrices: refreshBorrowerPrices,
+  } = useLivePriceComparison(borrowerLoans, {
+    refreshInterval: 120000, // 2 minutes
+    enableAutoRefresh: true,
+  });
+
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
   const [actionType, setActionType] = useState<
     "repay" | "liquidate" | "cancel" | null
   >(null);
   // Format loan details for display
   const formatLoanDetails = useCallback(
-    (
-      loan: Loan,
-      tokenInfo?: TokenInfo | null,
-      collateralInfo?: TokenInfo | null
-    ): LoanWithDetails => {
+    (loan: LoanWithPriceComparison): LoanWithDetails => {
       const currentTime = BigInt(Math.floor(Date.now() / 1000));
       const interest = calculateInterest(loan, currentTime);
       const totalRepayment = calculateTotalRepayment(loan, currentTime);
       const isOverdue = isLoanDefaulted(loan, currentTime);
+
+      // Get token info from config
+      const tokenInfo = getTokenByAddress(loan.tokenAddress);
+      const collateralInfo = getTokenByAddress(loan.collateralAddress);
 
       // Calculate time remaining
       let timeRemaining = "N/A";
@@ -217,103 +191,20 @@ export default function MyLoansPage() {
     [calculateInterest, calculateTotalRepayment, isLoanDefaulted]
   );
 
-  // Fetch detailed loan information
-  useEffect(() => {
-    const fetchLoanDetails = async () => {
-      if (
-        (!lenderLoans || lenderLoans.length === 0) &&
-        (!borrowerLoans || borrowerLoans.length === 0)
-      ) {
-        setLenderLoanDetails([]);
-        setBorrowerLoanDetails([]);
-        return;
-      }
+  // Format loans with pricing data for display
+  const lenderLoanDetails = React.useMemo(() => {
+    return lenderLoansWithPrices.map(formatLoanDetails);
+  }, [lenderLoansWithPrices, formatLoanDetails]);
 
-      setIsLoadingDetails(true);
-      try {
-        // Fetch lender loan details
-        const lenderPromises = (lenderLoans || []).map(async (loanId) => {
-          try {
-            const response = await fetch("/api/loan-details", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ loanId: loanId.toString() }),
-            });
+  const borrowerLoanDetails = React.useMemo(() => {
+    return borrowerLoansWithPrices.map(formatLoanDetails);
+  }, [borrowerLoansWithPrices, formatLoanDetails]);
 
-            if (!response.ok) {
-              throw new Error("Failed to fetch loan details");
-            }
-
-            const loanData = await response.json();
-            const loan = convertApiResponseToLoan(loanData);
-
-            // Fetch token information
-            const [tokenInfo, collateralInfo] = await Promise.all([
-              fetchTokenInfo(loan.tokenAddress),
-              fetchTokenInfo(loan.collateralAddress),
-            ]);
-
-            return formatLoanDetails(loan, tokenInfo, collateralInfo);
-          } catch (error) {
-            console.error(`Failed to fetch lender loan ${loanId}:`, error);
-            return null;
-          }
-        });
-
-        // Fetch borrower loan details
-        const borrowerPromises = (borrowerLoans || []).map(async (loanId) => {
-          try {
-            const response = await fetch("/api/loan-details", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ loanId: loanId.toString() }),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to fetch loan details");
-            }
-
-            const loanData = await response.json();
-            const loan = convertApiResponseToLoan(loanData);
-
-            // Fetch token information
-            const [tokenInfo, collateralInfo] = await Promise.all([
-              fetchTokenInfo(loan.tokenAddress),
-              fetchTokenInfo(loan.collateralAddress),
-            ]);
-
-            return formatLoanDetails(loan, tokenInfo, collateralInfo);
-          } catch (error) {
-            console.error(`Failed to fetch borrower loan ${loanId}:`, error);
-            return null;
-          }
-        });
-
-        const [lenderResults, borrowerResults] = await Promise.all([
-          Promise.all(lenderPromises),
-          Promise.all(borrowerPromises),
-        ]);
-
-        const validLenderLoans = lenderResults.filter(
-          (loan): loan is LoanWithDetails => loan !== null
-        );
-        const validBorrowerLoans = borrowerResults.filter(
-          (loan): loan is LoanWithDetails => loan !== null
-        );
-
-        setLenderLoanDetails(validLenderLoans);
-        setBorrowerLoanDetails(validBorrowerLoans);
-      } catch (error) {
-        console.error("Failed to fetch loan details:", error);
-        setLenderLoanDetails([]);
-        setBorrowerLoanDetails([]);
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    };
-
-    fetchLoanDetails();
-  }, [lenderLoans, borrowerLoans, formatLoanDetails]);
+  // Refresh all data
+  const refreshAllData = () => {
+    refreshLenderPrices();
+    refreshBorrowerPrices();
+  };
 
   const handleRepayLoan = async (loan: LoanWithDetails) => {
     if (!address) {
@@ -326,8 +217,7 @@ export default function MyLoansPage() {
       setActionType("repay");
       await repayLoan(loan.id, loan);
       // Refresh the loan data after successful repayment
-      await refetchBorrowerLoans();
-      await refetchLenderLoans();
+      refreshAllData();
     } catch (error) {
       console.error("Failed to repay loan:", error);
     } finally {
@@ -347,8 +237,7 @@ export default function MyLoansPage() {
       setActionType("liquidate");
       await liquidateLoan(loan.id);
       // Refresh the loan data after successful liquidation
-      await refetchLenderLoans();
-      await refetchBorrowerLoans();
+      refreshAllData();
     } catch (error) {
       console.error("Failed to liquidate loan:", error);
     } finally {
@@ -373,7 +262,7 @@ export default function MyLoansPage() {
       setActionType("cancel");
       await cancelLoanOffer(loan.id);
       // Refresh the loan data after successful cancellation
-      await refetchLenderLoans();
+      refreshAllData();
     } catch (error) {
       console.error("Failed to cancel loan offer:", error);
     } finally {
@@ -598,10 +487,10 @@ export default function MyLoansPage() {
                     loan.status === LoanStatus.Pending
                       ? "default"
                       : loan.status === LoanStatus.Active
-                      ? "secondary"
-                      : loan.status === LoanStatus.Repaid
-                      ? "outline"
-                      : "destructive"
+                        ? "secondary"
+                        : loan.status === LoanStatus.Repaid
+                          ? "outline"
+                          : "destructive"
                   }
                 >
                   {loan.statusText}
@@ -652,12 +541,22 @@ export default function MyLoansPage() {
           </p>
         </div>
         <Button
-          onClick={() => {
-            refetchLenderLoans();
-            refetchBorrowerLoans();
-          }}
+          onClick={refreshAllData}
           variant="outline"
+          disabled={
+            isLoadingSubgraph ||
+            isLoadingLenderPrices ||
+            isLoadingBorrowerPrices
+          }
+          className="btn-premium"
         >
+          {isLoadingSubgraph ||
+          isLoadingLenderPrices ||
+          isLoadingBorrowerPrices ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
           Refresh Loans
         </Button>
       </div>
@@ -706,10 +605,14 @@ export default function MyLoansPage() {
       )}
 
       {/* Error Alert */}
-      {transactionState.isError && (
+      {(transactionState.isError || subgraphError) && (
         <Alert className="mb-6" variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{transactionState.error}</AlertDescription>
+          <AlertDescription>
+            {transactionState.error}
+            {transactionState.error && subgraphError && " | "}
+            {subgraphError && `Failed to load loan data: ${subgraphError}`}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -726,18 +629,18 @@ export default function MyLoansPage() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card>
+        <Card className="luxury-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-green-100 text-green-600">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <TrendingUp className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {isLoadingLenderLoans ? "..." : lenderLoans?.length || 0}
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoadingSubgraph ? "..." : lenderLoans.length}
                 </p>
-                <p className="text-sm font-medium text-gray-900">As Lender</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-foreground">As Lender</p>
+                <p className="text-xs text-muted-foreground">
                   Loans you&apos;ve offered
                 </p>
               </div>
@@ -745,31 +648,35 @@ export default function MyLoansPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="luxury-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+              <div className="p-2 rounded-lg bg-secondary/20 text-secondary-foreground">
                 <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {isLoadingBorrowerLoans ? "..." : borrowerLoans?.length || 0}
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoadingSubgraph ? "..." : borrowerLoans.length}
                 </p>
-                <p className="text-sm font-medium text-gray-900">As Borrower</p>
-                <p className="text-xs text-gray-500">Loans you&apos;ve taken</p>
+                <p className="text-sm font-medium text-foreground">
+                  As Borrower
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Loans you&apos;ve taken
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="luxury-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
+              <div className="p-2 rounded-lg bg-accent/20 text-accent-foreground">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold text-foreground">
                   {lenderLoanDetails.filter(
                     (l) => l.status === LoanStatus.Active
                   ).length +
@@ -777,28 +684,30 @@ export default function MyLoansPage() {
                       (l) => l.status === LoanStatus.Active
                     ).length}
                 </p>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-foreground">
                   Active Loans
                 </p>
-                <p className="text-xs text-gray-500">Currently running</p>
+                <p className="text-xs text-muted-foreground">
+                  Currently running
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="luxury-shadow">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4">
-              <div className="p-2 rounded-lg bg-red-100 text-red-600">
+              <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-2xl font-bold text-foreground">
                   {lenderLoanDetails.filter((l) => l.isOverdue).length +
                     borrowerLoanDetails.filter((l) => l.isOverdue).length}
                 </p>
-                <p className="text-sm font-medium text-gray-900">Overdue</p>
-                <p className="text-xs text-gray-500">Need attention</p>
+                <p className="text-sm font-medium text-foreground">Overdue</p>
+                <p className="text-xs text-muted-foreground">Need attention</p>
               </div>
             </div>
           </CardContent>
@@ -806,10 +715,10 @@ export default function MyLoansPage() {
       </div>
 
       {/* Loans I'm Offering */}
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 luxury-shadow-lg glass">
+        <CardHeader className="gradient-bg">
           <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
+            <TrendingUp className="h-5 w-5 text-primary" />
             <span>Loans I&apos;m Offering</span>
           </CardTitle>
           <CardDescription>
@@ -818,7 +727,7 @@ export default function MyLoansPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingLenderLoans || isLoadingDetails ? (
+          {isLoadingSubgraph || isLoadingLenderPrices ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="flex items-center space-x-4">
@@ -837,10 +746,10 @@ export default function MyLoansPage() {
       </Card>
 
       {/* Loans I've Borrowed */}
-      <Card>
-        <CardHeader>
+      <Card className="luxury-shadow-lg glass">
+        <CardHeader className="gradient-bg">
           <CardTitle className="flex items-center space-x-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5 text-secondary-foreground" />
             <span>Loans I&apos;ve Borrowed</span>
           </CardTitle>
           <CardDescription>
@@ -849,7 +758,7 @@ export default function MyLoansPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoadingBorrowerLoans || isLoadingDetails ? (
+          {isLoadingSubgraph || isLoadingBorrowerPrices ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="flex items-center space-x-4">
