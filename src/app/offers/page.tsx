@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -28,6 +28,10 @@ import {
   ProcessedLoan,
   useProtocolStatsCollection,
 } from "@/hooks/useSubgraphQuery";
+import {
+  useLivePriceComparison,
+  LoanWithPriceComparison,
+} from "@/hooks/useLivePriceComparison";
 import { useRewards } from "@/hooks/useRewards";
 import {
   CheckCircle,
@@ -40,8 +44,10 @@ import {
   RefreshCw,
   Gift,
   TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { ethers } from "ethers";
+import { getTokenByAddress } from "@/config/tokens";
 
 interface TokenInfo {
   name: string;
@@ -49,7 +55,7 @@ interface TokenInfo {
   decimals: number;
 }
 
-interface LoanOfferWithDetails extends ProcessedLoan {
+interface LoanOfferWithDetails extends LoanWithPriceComparison {
   formattedAmount: string;
   formattedCollateralAmount: string;
   formattedInterestRate: number;
@@ -106,6 +112,24 @@ export default function OffersPage() {
     error: subgraphError,
   } = useAllLoansWithStatus();
 
+  // Filter for pending loans only
+  const pendingLoans = React.useMemo(() => {
+    return allLoans.filter((loan) => loan.status === 0); // Pending status
+  }, [allLoans]);
+
+  // Get live price comparison data
+  const {
+    loans: loansWithPrices,
+    loading: isLoadingPrices,
+    error: pricesError,
+    refreshPrices,
+    lastUpdated,
+    priceChangeStats,
+  } = useLivePriceComparison(pendingLoans, {
+    refreshInterval: 120000, // 2 minutes
+    enableAutoRefresh: true,
+  });
+
   // Get rewards data
   const {
     currentRewardsAPR,
@@ -114,90 +138,38 @@ export default function OffersPage() {
     globalRewardStats,
   } = useRewards();
 
-  const [loanOffers, setLoanOffers] = useState<LoanOfferWithDetails[]>([]);
-  const [isLoadingTokenInfo, setIsLoadingTokenInfo] = useState(false);
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const { data: protocolStats, loading: isLoadingProtocolStats } =
     useProtocolStatsCollection();
-  // Process subgraph data and fetch token information
-  useEffect(() => {
-    const processLoans = async () => {
-      if (!allLoans || allLoans.length === 0) {
-        setLoanOffers([]);
-        return;
-      }
 
-      // Filter for pending loans only
-      const pendingLoans = allLoans.filter((loan) => loan.status === 0); // Pending status
+  // Format loans with token information for display
+  const formattedLoans = React.useMemo(() => {
+    return loansWithPrices.map((loan) => {
+      const tokenInfo = getTokenByAddress(loan.tokenAddress);
+      const collateralInfo = getTokenByAddress(loan.collateralAddress);
 
-      if (pendingLoans.length === 0) {
-        setLoanOffers([]);
-        return;
-      }
+      const formattedAmount = tokenInfo
+        ? ethers.formatUnits(loan.amount, tokenInfo.decimals)
+        : ethers.formatEther(loan.amount);
 
-      setIsLoadingTokenInfo(true);
-      try {
-        const loanPromises = pendingLoans.map(async (loan) => {
-          try {
-            // Fetch token information for both loan token and collateral
-            const [tokenInfo, collateralInfo] = await Promise.all([
-              fetchTokenInfo(loan.tokenAddress),
-              fetchTokenInfo(loan.collateralAddress),
-            ]);
+      const formattedCollateralAmount = collateralInfo
+        ? ethers.formatUnits(loan.collateralAmount, collateralInfo.decimals)
+        : ethers.formatEther(loan.collateralAmount);
 
-            // Format the loan data for display
-            const formattedAmount = tokenInfo
-              ? ethers.formatUnits(loan.amount, tokenInfo.decimals)
-              : ethers.formatEther(loan.amount);
-
-            const formattedCollateralAmount = collateralInfo
-              ? ethers.formatUnits(
-                  loan.collateralAmount,
-                  collateralInfo.decimals
-                )
-              : ethers.formatEther(loan.collateralAmount);
-
-            const formattedLoan: LoanOfferWithDetails = {
-              ...loan,
-              formattedAmount,
-              formattedCollateralAmount,
-              formattedInterestRate: Number(loan.interestRate) / 100, // Convert from basis points
-              formattedDuration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-              statusText: [
-                "Pending",
-                "Active",
-                "Repaid",
-                "Defaulted",
-                "Cancelled",
-              ][loan.status],
-              tokenInfo: tokenInfo || undefined,
-              collateralInfo: collateralInfo || undefined,
-            };
-
-            return formattedLoan;
-          } catch (error) {
-            console.error(`Failed to process loan ${loan.id}:`, error);
-            return null;
-          }
-        });
-
-        const results = await Promise.all(loanPromises);
-        const validLoans = results.filter(
-          (loan): loan is LoanOfferWithDetails => loan !== null
-        );
-
-        setLoanOffers(validLoans);
-      } catch (error) {
-        console.error("Failed to process loan offers:", error);
-        setLoanOffers([]);
-      } finally {
-        setIsLoadingTokenInfo(false);
-      }
-    };
-
-    processLoans();
-  }, [allLoans, refreshKey]);
+      return {
+        ...loan,
+        formattedAmount,
+        formattedCollateralAmount,
+        formattedInterestRate: Number(loan.interestRate) / 100,
+        formattedDuration: Number(loan.duration) / (24 * 60 * 60),
+        statusText: ["Pending", "Active", "Repaid", "Defaulted", "Cancelled"][
+          loan.status
+        ],
+        tokenInfo,
+        collateralInfo,
+      };
+    });
+  }, [loansWithPrices]);
 
   const handleAcceptOffer = async (loan: LoanOfferWithDetails) => {
     if (!address) {
@@ -214,7 +186,7 @@ export default function OffersPage() {
       setSelectedLoanId(loan.id);
       await acceptLoanOffer(loan.id, loan);
       // Refresh the data after successful acceptance
-      setRefreshKey((prev) => prev + 1);
+      refreshPrices();
     } catch (error) {
       console.error("Failed to accept loan offer:", error);
     } finally {
@@ -237,7 +209,7 @@ export default function OffersPage() {
       setSelectedLoanId(loan.id);
       await cancelLoanOffer(loan.id);
       // Refresh the data after successful cancellation
-      setRefreshKey((prev) => prev + 1);
+      refreshPrices();
     } catch (error) {
       console.error("Failed to cancel loan offer:", error);
     } finally {
@@ -246,7 +218,7 @@ export default function OffersPage() {
   };
 
   const handleRefresh = () => {
-    setRefreshKey((prev) => prev + 1);
+    refreshPrices();
   };
 
   // Calculate rewards APR for display
@@ -323,18 +295,28 @@ export default function OffersPage() {
             Browse and accept loan offers from lenders on DreamLend
           </p>
         </div>
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          disabled={isLoadingSubgraph || isLoadingTokenInfo}
-        >
-          {isLoadingSubgraph || isLoadingTokenInfo ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
+        <div className="flex items-center space-x-3">
+          {lastUpdated && (
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>
+                Updated {Math.floor((Date.now() - lastUpdated) / 1000)}s ago
+              </span>
+            </div>
           )}
-          Refresh Offers
-        </Button>
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            disabled={isLoadingSubgraph || isLoadingPrices}
+          >
+            {isLoadingSubgraph || isLoadingPrices ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Refresh Offers
+          </Button>
+        </div>
       </div>
 
       {transactionState.step !== "idle" && selectedLoanId && (
@@ -369,16 +351,18 @@ export default function OffersPage() {
         </Alert>
       )}
 
-      {subgraphError && (
+      {(subgraphError || pricesError) && (
         <Alert className="mb-6" variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Failed to load loan data from subgraph: {subgraphError}
+            {subgraphError && `Failed to load loan data: ${subgraphError}`}
+            {subgraphError && pricesError && " | "}
+            {pricesError && `Failed to load prices: ${pricesError}`}
           </AlertDescription>
         </Alert>
       )}
 
-      {isLoadingSubgraph || isLoadingTokenInfo ? (
+      {isLoadingSubgraph || isLoadingPrices ? (
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
@@ -394,7 +378,7 @@ export default function OffersPage() {
             </div>
           </CardContent>
         </Card>
-      ) : loanOffers.length === 0 ? (
+      ) : formattedLoans.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="py-8">
@@ -412,7 +396,7 @@ export default function OffersPage() {
       ) : (
         <div className="space-y-6">
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-2">
@@ -442,12 +426,14 @@ export default function OffersPage() {
                   <span className="text-sm font-medium">Average Duration</span>
                 </div>
                 <p className="text-2xl font-bold">
-                  {Math.round(
-                    loanOffers.reduce(
-                      (sum, loan) => sum + loan.formattedDuration,
-                      0
-                    ) / loanOffers.length
-                  )}{" "}
+                  {formattedLoans.length > 0
+                    ? Math.round(
+                        formattedLoans.reduce(
+                          (sum, loan) => sum + loan.formattedDuration,
+                          0
+                        ) / formattedLoans.length
+                      )
+                    : 0}{" "}
                   Days
                 </p>
               </CardContent>
@@ -467,6 +453,26 @@ export default function OffersPage() {
                 </p>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Price Trends</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-lg font-bold text-green-600">
+                    ↑{priceChangeStats.pricesUp}
+                  </p>
+                  <p className="text-lg font-bold text-red-600">
+                    ↓{priceChangeStats.pricesDown}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Prices up/down since creation
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Premium Offers Table */}
@@ -482,8 +488,8 @@ export default function OffersPage() {
                       Available Loan Offers
                     </CardTitle>
                     <CardDescription>
-                      {loanOffers.length} premium loan offer
-                      {loanOffers.length !== 1 ? "s" : ""} available
+                      {formattedLoans.length} loan offer
+                      {formattedLoans.length !== 1 ? "s" : ""} available
                     </CardDescription>
                   </div>
                 </div>
@@ -506,7 +512,10 @@ export default function OffersPage() {
                         Loan ID
                       </TableHead> */}
                       <TableHead className="font-semibold text-muted-foreground">
-                        Amount
+                        Amount & Live Value
+                      </TableHead>
+                      <TableHead className="font-semibold text-muted-foreground">
+                        Price Change
                       </TableHead>
                       <TableHead className="font-semibold text-muted-foreground">
                         Interest APR
@@ -543,7 +552,7 @@ export default function OffersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loanOffers.map((loan, index) => (
+                    {formattedLoans.map((loan, index) => (
                       <TableRow
                         key={loan.id.toString()}
                         className={`
@@ -566,10 +575,62 @@ export default function OffersPage() {
                                 {loan.tokenInfo?.symbol || "Tokens"}
                               </span>
                             </p>
+                            <div className="space-y-1">
+                              <p className="text-sm text-green-600 font-medium">
+                                ${loan.currentLoanValueUSD}
+                              </p>
+                              {/* {loan.historicalAmountUSD && (
+                                <p className="text-xs text-muted-foreground">
+                                  Was $
+                                  {parseFloat(loan.historicalAmountUSD).toFixed(
+                                    2
+                                  )}{" "}
+                                  at creation
+                                </p>
+                              )} */}
+                            </div>
                             <p className="text-xs text-muted-foreground">
                               {loan.tokenInfo?.name ||
                                 `${loan.tokenAddress.slice(0, 6)}...${loan.tokenAddress.slice(-4)}`}
                             </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {loan.currentTokenPrice?.success ? (
+                              <>
+                                <Badge
+                                  variant="secondary"
+                                  className={`${
+                                    loan.priceChangeIndicator.isPositive
+                                      ? "bg-green-50 text-green-700 border-green-200"
+                                      : loan.loanTokenPriceDirection === "down"
+                                        ? "bg-red-50 text-red-700 border-red-200"
+                                        : "bg-gray-50 text-gray-700 border-gray-200"
+                                  }`}
+                                >
+                                  {loan.loanTokenPriceDirection === "up" && (
+                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                  )}
+                                  {loan.loanTokenPriceDirection === "down" && (
+                                    <TrendingDown className="h-3 w-3 mr-1" />
+                                  )}
+                                  {loan.priceChangeIndicator.percentage}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground">
+                                  Current: ${loan.currentTokenPrice.priceUSD}
+                                </p>
+                                {loan.isStalePrice && (
+                                  <p className="text-xs text-orange-600">
+                                    ⚠ Stale price
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                Price Error
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -614,7 +675,10 @@ export default function OffersPage() {
                                 {loan.collateralInfo?.symbol || "Tokens"}
                               </span>
                             </p>
-                            <p className="text-xs text-foreground">
+                            <p className="text-sm text-blue-600 font-medium">
+                              ${loan.currentCollateralValueUSD}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
                               {loan.collateralInfo?.name ||
                                 `${loan.collateralAddress.slice(0, 6)}...${loan.collateralAddress.slice(-4)}`}
                             </p>

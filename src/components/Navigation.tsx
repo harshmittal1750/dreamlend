@@ -57,11 +57,11 @@ export function Navigation() {
       label: "My Loans",
       icon: User,
     },
-    {
-      href: "/analytics",
-      label: "Analytics",
-      icon: BarChart3,
-    },
+    // {
+    //   href: "/analytics",
+    //   label: "Analytics",
+    //   icon: BarChart3,
+    // },
   ];
 
   const toggleTheme = () => {

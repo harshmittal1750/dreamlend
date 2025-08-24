@@ -185,6 +185,12 @@ export function basisPointsToPercentage(bps: number): number {
   return bps / 100;
 }
 
+// Get price feed address for a token
+export function getPriceFeedAddress(tokenAddress: string): string | undefined {
+  const token = getTokenByAddress(tokenAddress);
+  return token?.priceFeedAddress;
+}
+
 // Format duration in seconds to human readable
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
