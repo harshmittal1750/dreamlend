@@ -10,10 +10,11 @@ if (!projectId) {
 
 // Set up metadata
 const metadata = {
-  name: "next-reown-appkit",
-  description: "next-reown-appkit",
-  url: "https://github.com/0xonerb/next-reown-appkit-ssr", // origin must match your domain & subdomain
-  icons: ["https://avatars.githubusercontent.com/u/179229932"],
+  name: "DreamLend Finance",
+  description:
+    "DreamLend Finance a secure , smart and permission less  way to lend/borrow",
+  url: "https://www.dreamlend.finance", // origin must match your domain & subdomain
+  icons: ["https://www.dreamlend.finance/logo.png"],
 };
 
 // Create the modal
@@ -29,6 +30,10 @@ export const modal = createAppKit({
   themeMode: "light",
   features: {
     analytics: true, // Optional - defaults to your Cloud configuration
+    history: false,
+    swaps: false,
+    onramp: false,
+    send: false,
   },
   themeVariables: {
     "--w3m-accent": "#000000",
