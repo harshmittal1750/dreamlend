@@ -5,59 +5,30 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import ContextProvider from "@/context";
 import Navigation from "@/components/Navigation";
+import {
+  generateSEOMetadata,
+  generateOrganizationSchema,
+  StructuredData,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "DreamLend - P2P Lending",
-  description:
-    "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1 with institutional-grade security and user experience.",
-  keywords: [
-    "DeFi",
-    "P2P Lending",
-    "Cryptocurrency",
-    "Blockchain",
-    "Somnia L1",
-    "Decentralized Finance",
-  ],
-  authors: [{ name: "DreamLend Team" }],
-  creator: "DreamLend",
-  publisher: "DreamLend",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  metadataBase: new URL("https://dreamlend.finance"),
-  openGraph: {
-    title: "DreamLend - P2P Lending",
+  ...generateSEOMetadata({
+    title: "P2P Lending / Borrowing",
     description:
-      "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1.",
-    url: "https://dreamlend.finance",
-    siteName: "DreamLend",
-    locale: "en_US",
-    type: "website",
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "DreamLend - P2P Lending",
-    description:
-      "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1.",
-    creator: "@dreamlend",
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-  verification: {
-    google: "your-google-verification-code",
-  },
+      "Lend, borrow, and earn with DreamLend Finance - the most secure P2P crypto lending platform built on Somnia L1. Get instant crypto loans or earn high yields on your digital assets.",
+    canonical: "/",
+    keywords: [
+      "crypto lending platform",
+      "best DeFi lending",
+      "secure crypto loans",
+      "high yield crypto",
+      "Somnia L1 DeFi",
+      "institutional crypto lending",
+    ],
+  }),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://dreamlend.finance"
+  ),
 };
 
 export default async function RootLayout({
@@ -74,6 +45,7 @@ export default async function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <StructuredData data={generateOrganizationSchema()} />
       </head>
       <body className="antialiased">
         <ThemeProvider
