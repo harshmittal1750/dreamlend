@@ -57,8 +57,8 @@ export const initGA = () => {
 
   // Initialize dataLayer and gtag
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag() {
-    window.dataLayer.push(Array.from(arguments));
+  window.gtag = function gtag(...args: any[]) {
+    window.dataLayer.push(args);
   };
 
   window.gtag("js", new Date());
@@ -191,7 +191,8 @@ export const trackWebVitals = () => {
   const fidObserver = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
       if (entry.entryType === "first-input") {
-        const fid = (entry as PerformanceEventTiming).processingStart - entry.startTime;
+        const fid =
+          (entry as PerformanceEventTiming).processingStart - entry.startTime;
         trackPerformance("FID", fid);
       }
     }
