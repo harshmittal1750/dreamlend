@@ -1,5 +1,12 @@
 "use client";
 
+import { generateBreadcrumbSchema, StructuredData } from "@/lib/seo";
+
+const breadcrumbSchema = generateBreadcrumbSchema([
+  { name: "Home", url: "/" },
+  { name: "Create Loan Offer", url: "/create" },
+]);
+
 import { useState, useRef } from "react";
 import {
   Card,
@@ -552,851 +559,871 @@ export default function CreateLoanOfferPage() {
   // }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-          Create Loan Offer
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Create a loan offer on DreamLend. Your tokens will be securely
-          escrowed until the offer is accepted or cancelled.
-        </p>
-      </div>
+    <>
+      <StructuredData data={breadcrumbSchema} />
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Create Loan Offer
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Create a loan offer on DreamLend. Your tokens will be securely
+            escrowed until the offer is accepted or cancelled.
+          </p>
+        </div>
 
-      {/* Quick Mint Tokens Section */}
-      <div className="mb-6">
-        <QuickMintTokens />
-      </div>
+        {/* Quick Mint Tokens Section */}
+        <div className="mb-6">
+          <QuickMintTokens />
+        </div>
 
-      <Card className="luxury-shadow-lg">
-        <CardHeader className="pb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl">
-                Loan Offer Configuration
-              </CardTitle>
-              <CardDescription className="text-base mt-2">
-                Configure your loan terms and collateral requirements
-              </CardDescription>
-            </div>
-            {/* {address && (
+        <Card className="luxury-shadow-lg">
+          <CardHeader className="pb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl">
+                  Loan Offer Configuration
+                </CardTitle>
+                <CardDescription className="text-base mt-2">
+                  Configure your loan terms and collateral requirements
+                </CardDescription>
+              </div>
+              {/* {address && (
               <div className="glass px-3 py-2 rounded-xl">
                 <span className="text-xs font-mono text-muted-foreground">
                   {address.slice(0, 6)}...{address.slice(-4)}
                 </span>
               </div>
             )} */}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {transactionState.step !== "idle" && (
-            <Card className="mb-6 bg-accent/30 border-primary/20">
-              <CardContent className="pt-6">
-                <h3 className="font-semibold mb-4 text-lg flex items-center">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
-                  Transaction Progress
-                </h3>
-                <div className="space-y-3">
-                  {renderStepIndicator("approving", "Approve Token Spending")}
-                  <div className="flex items-center justify-center py-2">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  {renderStepIndicator("creating", "Create Loan Offer")}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {transactionState.isError && (
-            <Alert className="mb-6" variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{transactionState.error}</AlertDescription>
-            </Alert>
-          )}
-
-          {transactionState.isSuccess && (
-            <Alert className="mb-6" variant="default">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <AlertDescription>
-                Loan offer created successfully! Transaction hash:{" "}
-                {transactionState.hash?.slice(0, 10)}...
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Loan Token Details */}
-            <Card className="border-border/50">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
-                    <span className="text-primary font-bold text-sm">1</span>
-                  </div>
-                  Loan Token Details
-                </CardTitle>
-                <CardDescription>
-                  Choose the token you want to lend and specify the amount
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <TokenSelector
-                      ref={loanTokenSelectorRef}
-                      selectedToken={selectedLoanToken}
-                      onTokenSelect={handleLoanTokenSelect}
-                      label="Loan Token"
-                      placeholder="Select token to lend"
-                      excludeToken={selectedCollateralToken}
-                      userAddress={address}
-                      showBalance={true}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="amount" className="text-base font-medium">
-                        Amount
-                      </Label>
-                      {selectedLoanToken && address && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Wallet className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Balance:
-                          </span>
-                          {isLoadingLoanBalance ? (
-                            <RefreshCw className="h-3 w-3 animate-spin text-primary" />
-                          ) : loanBalanceError ? (
-                            <span className="text-destructive">Error</span>
-                          ) : (
-                            <>
-                              <span className="font-medium text-primary">
-                                {loanTokenBalance} {selectedLoanToken.symbol}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleMaxLoanAmount}
-                                className="h-6 px-2 text-xs text-primary hover:text-primary-foreground hover:bg-primary"
-                                disabled={
-                                  !rawLoanBalance || rawLoanBalance === "0"
-                                }
-                              >
-                                MAX
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <Input
-                      id="amount"
-                      type="text"
-                      placeholder={
-                        selectedLoanToken
-                          ? `e.g., 1000 (max ${selectedLoanToken.decimals} decimals)`
-                          : "1000"
-                      }
-                      value={formData.amount}
-                      onChange={(e) =>
-                        handleInputChange("amount", e.target.value)
-                      }
-                      className={`h-12 text-base ${
-                        formErrors.amount
-                          ? "border-destructive focus-visible:ring-destructive"
-                          : ""
-                      }`}
-                    />
-                    {formErrors.amount && (
-                      <p className="text-sm text-destructive flex items-center mt-2">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {formErrors.amount}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Loan Terms */}
-            <Card className="border-border/50">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
-                    <span className="text-primary font-bold text-sm">2</span>
-                  </div>
-                  Loan Terms
-                </CardTitle>
-                <CardDescription>
-                  Set your interest rate and loan duration preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="interestRate"
-                      className="text-base font-medium"
-                    >
-                      Annual Interest Rate (%)
-                    </Label>
-                    <Input
-                      id="interestRate"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      max="100"
-                      placeholder="5.0"
-                      value={formData.interestRate}
-                      onChange={(e) =>
-                        handleInputChange("interestRate", e.target.value)
-                      }
-                      className={`h-12 text-base ${
-                        formErrors.interestRate
-                          ? "border-destructive focus-visible:ring-destructive"
-                          : ""
-                      }`}
-                    />
-                    {formErrors.interestRate && (
-                      <p className="text-sm text-destructive flex items-center mt-2">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {formErrors.interestRate}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="duration" className="text-base font-medium">
-                      Duration (Days)
-                    </Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      placeholder="30"
-                      value={formData.duration}
-                      onChange={(e) =>
-                        handleInputChange("duration", e.target.value)
-                      }
-                      className={`h-12 text-base ${
-                        formErrors.duration
-                          ? "border-destructive focus-visible:ring-destructive"
-                          : ""
-                      }`}
-                    />
-                    {formErrors.duration && (
-                      <p className="text-sm text-destructive flex items-center mt-2">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {formErrors.duration}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Collateral Details */}
-            <Card className="border-border/50">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
-                    <span className="text-primary font-bold text-sm">3</span>
-                  </div>
-                  Collateral Requirements
-                </CardTitle>
-                <CardDescription>
-                  Define what collateral borrowers must provide to secure the
-                  loan
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <TokenSelector
-                      ref={collateralTokenSelectorRef}
-                      selectedToken={selectedCollateralToken}
-                      onTokenSelect={handleCollateralTokenSelect}
-                      label="Collateral Token"
-                      placeholder="Select collateral token"
-                      excludeToken={selectedLoanToken}
-                      userAddress={address}
-                      showBalance={true}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="collateralAmount"
-                        className="text-base font-medium"
-                      >
-                        Collateral Amount
-                      </Label>
-                      {selectedCollateralToken && address && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Wallet className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Balance:
-                          </span>
-                          {isLoadingCollateralBalance ? (
-                            <RefreshCw className="h-3 w-3 animate-spin text-primary" />
-                          ) : collateralBalanceError ? (
-                            <span className="text-destructive">Error</span>
-                          ) : (
-                            <>
-                              <span className="font-medium text-primary">
-                                {collateralTokenBalance}{" "}
-                                {selectedCollateralToken.symbol}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleMaxCollateralAmount}
-                                className="h-6 px-2 text-xs text-primary hover:text-primary-foreground hover:bg-primary"
-                                disabled={
-                                  !rawCollateralBalance ||
-                                  rawCollateralBalance === "0"
-                                }
-                              >
-                                MAX
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <Input
-                      id="collateralAmount"
-                      type="text"
-                      placeholder={
-                        selectedCollateralToken
-                          ? `e.g., 1500 (max ${selectedCollateralToken.decimals} decimals)`
-                          : "1500"
-                      }
-                      value={formData.collateralAmount}
-                      onChange={(e) =>
-                        handleInputChange("collateralAmount", e.target.value)
-                      }
-                      className={`h-12 text-base ${
-                        formErrors.collateralAmount
-                          ? "border-destructive focus-visible:ring-destructive"
-                          : ""
-                      }`}
-                    />
-                    {formErrors.collateralAmount && (
-                      <p className="text-sm text-destructive flex items-center mt-2">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {formErrors.collateralAmount}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Real-time Collateral Calculator */}
-            {collateralCalc &&
-              selectedLoanToken &&
-              selectedCollateralToken &&
-              formData.amount && (
-                <Card className="glass luxury-shadow-lg border-primary/20 gradient-bg">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-xl flex items-center">
-                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
-                            <Info className="h-5 w-5 text-primary" />
-                          </div>
-                          Live Oracle Pricing & Collateral Calculator
-                        </CardTitle>
-                        <CardDescription>
-                          Real-time calculations based on current market prices
-                          from DIA oracles • Auto-refreshes every 30s
-                        </CardDescription>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={refreshPrices}
-                        disabled={calcLoading}
-                        className="flex items-center gap-2 btn-premium"
-                      >
-                        <RefreshCw
-                          className={`h-4 w-4 ${
-                            calcLoading ? "animate-spin" : ""
-                          }`}
-                        />
-                        Refresh
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Current Market Prices */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {selectedLoanToken.symbol} Price
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-2 h-2 rounded-full status-dot ${
-                                prices.get(selectedLoanToken.address)?.isStale
-                                  ? "error"
-                                  : "success"
-                              }`}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {prices.get(selectedLoanToken.address)?.isStale
-                                ? "Stale"
-                                : "Live"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-2xl font-bold text-primary">
-                          ${collateralCalc.priceImpact.loanTokenPriceUSD}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Updated:{" "}
-                          {new Date(
-                            (prices.get(selectedLoanToken.address)?.updatedAt ||
-                              0) * 1000
-                          ).toLocaleTimeString()}
-                        </div>
-                      </div>
-
-                      <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {selectedCollateralToken.symbol} Price
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-2 h-2 rounded-full status-dot ${
-                                prices.get(selectedCollateralToken.address)
-                                  ?.isStale
-                                  ? "error"
-                                  : "success"
-                              }`}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {prices.get(selectedCollateralToken.address)
-                                ?.isStale
-                                ? "Stale"
-                                : "Live"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-2xl font-bold text-primary">
-                          ${collateralCalc.priceImpact.collateralTokenPriceUSD}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Updated:{" "}
-                          {new Date(
-                            (prices.get(selectedCollateralToken.address)
-                              ?.updatedAt || 0) * 1000
-                          ).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Exchange Rate */}
-                    <div className="bg-secondary/50 border border-secondary rounded-lg p-4 luxury-shadow">
-                      <div className="text-center">
-                        <div className="text-sm font-medium text-secondary-foreground mb-1">
-                          Exchange Rate
-                        </div>
-                        <div className="text-xl font-bold text-primary">
-                          1 {selectedLoanToken.symbol} ={" "}
-                          {collateralCalc.priceImpact.exchangeRate}{" "}
-                          {selectedCollateralToken.symbol}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Collateral Analysis - Dynamic based on health status */}
-                    <div
-                      className={`rounded-lg p-4 luxury-shadow transition-all duration-300 ${
-                        formData.collateralAmount &&
-                        parseFloat(formData.collateralAmount) > 0
-                          ? collateralCalc.isHealthy
-                            ? "bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/30"
-                            : "bg-gradient-to-r from-accent/30 to-destructive/20 border border-destructive/30"
-                          : "bg-gradient-to-r from-accent/20 to-muted/30 border border-muted-foreground/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {formData.collateralAmount &&
-                          parseFloat(formData.collateralAmount) > 0 ? (
-                            collateralCalc.isHealthy ? (
-                              <>
-                                <CheckCircle className="h-5 w-5 text-primary" />
-                                <span className="font-semibold text-primary">
-                                  Collateral Analysis - Well Secured
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertTriangle className="h-5 w-5 text-destructive" />
-                                <span className="font-semibold text-destructive-foreground">
-                                  Collateral Analysis - Needs More
-                                </span>
-                              </>
-                            )
-                          ) : (
-                            <>
-                              <Info className="h-5 w-5 text-muted-foreground" />
-                              <span className="font-semibold text-foreground">
-                                Collateral Requirements
-                              </span>
-                            </>
-                          )}
-                        </div>
-                        <span
-                          className={`text-sm font-medium ${
-                            formData.collateralAmount &&
-                            parseFloat(formData.collateralAmount) > 0
-                              ? collateralCalc.isHealthy
-                                ? "text-primary"
-                                : "text-destructive"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {collateralCalc.minRatio}% Min Ratio
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">
-                            {formData.collateralAmount &&
-                            parseFloat(formData.collateralAmount) > 0 &&
-                            collateralCalc.isHealthy
-                              ? "Minimum Required (Met)"
-                              : "Minimum Required"}{" "}
-                            - For {formData.amount} {selectedLoanToken.symbol}
-                          </div>
-                          <div
-                            className={`text-2xl font-bold ${
-                              formData.collateralAmount &&
-                              parseFloat(formData.collateralAmount) > 0 &&
-                              collateralCalc.isHealthy
-                                ? "text-primary"
-                                : "text-destructive"
-                            }`}
-                          >
-                            {collateralCalc.minCollateralAmount}{" "}
-                            {selectedCollateralToken.symbol}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            ≈ {collateralCalc.priceImpact.minCollateralValueUSD}
-                          </div>
-                        </div>
-
-                        {formData.collateralAmount &&
-                          parseFloat(formData.collateralAmount) > 0 && (
-                            <div>
-                              <div className="text-sm text-muted-foreground mb-1">
-                                Your Collateral Amount
-                              </div>
-                              <div
-                                className={`text-2xl font-bold ${
-                                  collateralCalc.isHealthy
-                                    ? "text-primary"
-                                    : "text-destructive"
-                                }`}
-                              >
-                                {formData.collateralAmount}{" "}
-                                {selectedCollateralToken.symbol}
-                              </div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <div
-                                  className={`w-2 h-2 rounded-full status-dot ${
-                                    collateralCalc.isHealthy
-                                      ? "success"
-                                      : "error"
-                                  }`}
-                                />
-                                <span
-                                  className={
-                                    collateralCalc.isHealthy
-                                      ? "text-primary"
-                                      : "text-destructive"
-                                  }
-                                >
-                                  {collateralCalc.currentRatio}% Ratio{" "}
-                                  {collateralCalc.isHealthy
-                                    ? "(Healthy)"
-                                    : "(Insufficient)"}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                      </div>
-
-                      {/* Auto-fill button - Only show if not already healthy or no collateral entered */}
-                      {(!formData.collateralAmount ||
-                        parseFloat(formData.collateralAmount) === 0 ||
-                        !collateralCalc.isHealthy) && (
-                        <div className="mt-4 pt-4 border-t border-border">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              handleAutoFillMinCollateral(
-                                collateralCalc.minCollateralAmount,
-                                collateralCalc.minCollateralAmountRaw
-                              );
-                            }}
-                            className={`w-full btn-premium border-border text-foreground transition-all duration-300 ${
-                              formData.collateralAmount &&
-                              parseFloat(formData.collateralAmount) > 0 &&
-                              !collateralCalc.isHealthy
-                                ? "bg-destructive/10 hover:bg-destructive/20 border-destructive/30"
-                                : "bg-card hover:bg-accent"
-                            }`}
-                          >
-                            <div className="text-center">
-                              <div className="font-medium">
-                                {formData.collateralAmount &&
-                                parseFloat(formData.collateralAmount) > 0 &&
-                                !collateralCalc.isHealthy
-                                  ? "Fix Collateral - Add Safe Amount (+0.1% buffer)"
-                                  : "Auto-fill Safe Amount (+0.1% buffer)"}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {formData.collateralAmount &&
-                                parseFloat(formData.collateralAmount) > 0 &&
-                                !collateralCalc.isHealthy
-                                  ? "Click to meet minimum requirements"
-                                  : "Automatically fills minimum + safety buffer"}
-                              </div>
-                            </div>
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Success message when collateral is healthy */}
-                      {formData.collateralAmount &&
-                        parseFloat(formData.collateralAmount) > 0 &&
-                        collateralCalc.isHealthy && (
-                          <div className="mt-4 pt-4 border-t border-primary/20">
-                            <div className="flex items-center justify-center gap-2 text-primary">
-                              <CheckCircle className="h-4 w-4" />
-                              <span className="text-sm font-medium">
-                                Perfect! Your collateral exceeds minimum
-                                requirements
-                              </span>
-                            </div>
-                            <div className="text-center text-xs text-muted-foreground mt-1">
-                              Your loan is well-secured and ready to create
-                            </div>
-                          </div>
-                        )}
-                    </div>
-
-                    {calcLoading && (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          Calculating collateral requirements...
-                        </span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-            {/* Risk Management Parameters */}
-            {recommendedParams &&
-              selectedLoanToken &&
-              selectedCollateralToken && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium flex items-center gap-2">
-                    <Info className="h-5 w-5 text-primary" />
-                    Risk Management Parameters
+            </div>
+          </CardHeader>
+          <CardContent>
+            {transactionState.step !== "idle" && (
+              <Card className="mb-6 bg-accent/30 border-primary/20">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-4 text-lg flex items-center">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                    Transaction Progress
                   </h3>
-                  <div className="bg-secondary/30 border border-secondary rounded-lg p-4 space-y-3 luxury-shadow">
-                    <div className="flex items-center gap-2 text-sm font-medium text-secondary-foreground">
-                      <Info className="h-4 w-4" />
-                      Recommended settings for {selectedLoanToken.symbol} →{" "}
-                      {selectedCollateralToken.symbol}
+                  <div className="space-y-3">
+                    {renderStepIndicator("approving", "Approve Token Spending")}
+                    <div className="flex items-center justify-center py-2">
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
-                        <div className="font-medium text-foreground">
-                          Min Collateral Ratio
-                        </div>
-                        <div className="text-lg font-bold text-primary">
-                          {formatBasisPoints(
-                            recommendedParams.minCollateralRatio
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Required at loan acceptance
-                        </div>
-                      </div>
-
-                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
-                        <div className="font-medium text-foreground">
-                          Liquidation Threshold
-                        </div>
-                        <div className="text-lg font-bold text-destructive">
-                          {formatBasisPoints(
-                            recommendedParams.liquidationThreshold
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Liquidation trigger point
-                        </div>
-                      </div>
-
-                      <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
-                        <div className="font-medium text-foreground">
-                          Price Staleness
-                        </div>
-                        <div className="text-lg font-bold text-accent-foreground">
-                          {formatDuration(recommendedParams.maxPriceStaleness)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Max oracle age allowed
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2 p-3 bg-accent/20 border border-accent rounded text-sm luxury-shadow">
-                      <AlertTriangle className="h-4 w-4 text-accent-foreground mt-0.5 flex-shrink-0" />
-                      <div>
-                        <div className="font-medium text-accent-foreground">
-                          Risk Assessment
-                        </div>
-                        <div className="text-muted-foreground">
-                          Based on volatility: {selectedLoanToken.symbol} (
-                          {selectedLoanToken.volatilityTier}) lending{" "}
-                          {selectedCollateralToken.symbol} (
-                          {selectedCollateralToken.volatilityTier}) collateral.
-                          Higher volatility assets require higher collateral
-                          ratios for safety.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            <Separator />
-
-            {/* Summary */}
-            {formData.amount && formData.interestRate && formData.duration && (
-              <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl flex items-center">
-                    <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
-                      <CheckCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    Loan Summary
-                  </CardTitle>
-                  <CardDescription>
-                    Review your loan offer details before creating
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Loan Amount:
-                        </span>
-                        <span className="font-semibold">
-                          {formData.amount}{" "}
-                          {selectedLoanToken?.symbol || "tokens"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Interest Rate:
-                        </span>
-                        <span className="font-semibold">
-                          {formData.interestRate}% APR
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Duration:</span>
-                        <span className="font-semibold">
-                          {formData.duration} days
-                        </span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Required Collateral:
-                        </span>
-                        <span className="font-semibold">
-                          {formData.collateralAmount}{" "}
-                          {selectedCollateralToken?.symbol || "tokens"}
-                        </span>
-                      </div>
-                      {formData.amount &&
-                        formData.interestRate &&
-                        formData.duration && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">
-                              Total Interest:
-                            </span>
-                            <span className="font-semibold text-green-600">
-                              {(
-                                (parseFloat(formData.amount) *
-                                  parseFloat(formData.interestRate) * // percentage rate
-                                  parseFloat(formData.duration)) /
-                                (365 * 100)
-                              ) // convert percentage to decimal and annualize
-                                .toFixed(6)}{" "}
-                              {selectedLoanToken?.symbol || "tokens"}
-                            </span>
-                          </div>
-                        )}
-                    </div>
+                    {renderStepIndicator("creating", "Create Loan Offer")}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button
-                type="submit"
-                disabled={transactionState.isLoading}
-                className="flex-1 h-12 text-base font-semibold btn-premium"
-                size="lg"
-              >
-                {transactionState.isLoading && (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            {transactionState.isError && (
+              <Alert className="mb-6" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{transactionState.error}</AlertDescription>
+              </Alert>
+            )}
+
+            {transactionState.isSuccess && (
+              <Alert className="mb-6" variant="default">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <AlertDescription>
+                  Loan offer created successfully! Transaction hash:{" "}
+                  {transactionState.hash?.slice(0, 10)}...
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Loan Token Details */}
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl flex items-center">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-primary font-bold text-sm">1</span>
+                    </div>
+                    Loan Token Details
+                  </CardTitle>
+                  <CardDescription>
+                    Choose the token you want to lend and specify the amount
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <TokenSelector
+                        ref={loanTokenSelectorRef}
+                        selectedToken={selectedLoanToken}
+                        onTokenSelect={handleLoanTokenSelect}
+                        label="Loan Token"
+                        placeholder="Select token to lend"
+                        excludeToken={selectedCollateralToken}
+                        userAddress={address}
+                        showBalance={true}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label
+                          htmlFor="amount"
+                          className="text-base font-medium"
+                        >
+                          Amount
+                        </Label>
+                        {selectedLoanToken && address && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Wallet className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              Balance:
+                            </span>
+                            {isLoadingLoanBalance ? (
+                              <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                            ) : loanBalanceError ? (
+                              <span className="text-destructive">Error</span>
+                            ) : (
+                              <>
+                                <span className="font-medium text-primary">
+                                  {loanTokenBalance} {selectedLoanToken.symbol}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleMaxLoanAmount}
+                                  className="h-6 px-2 text-xs text-primary hover:text-primary-foreground hover:bg-primary"
+                                  disabled={
+                                    !rawLoanBalance || rawLoanBalance === "0"
+                                  }
+                                >
+                                  MAX
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Input
+                        id="amount"
+                        type="text"
+                        placeholder={
+                          selectedLoanToken
+                            ? `e.g., 1000 (max ${selectedLoanToken.decimals} decimals)`
+                            : "1000"
+                        }
+                        value={formData.amount}
+                        onChange={(e) =>
+                          handleInputChange("amount", e.target.value)
+                        }
+                        className={`h-12 text-base ${
+                          formErrors.amount
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }`}
+                      />
+                      {formErrors.amount && (
+                        <p className="text-sm text-destructive flex items-center mt-2">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {formErrors.amount}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Loan Terms */}
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl flex items-center">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-primary font-bold text-sm">2</span>
+                    </div>
+                    Loan Terms
+                  </CardTitle>
+                  <CardDescription>
+                    Set your interest rate and loan duration preferences
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="interestRate"
+                        className="text-base font-medium"
+                      >
+                        Annual Interest Rate (%)
+                      </Label>
+                      <Input
+                        id="interestRate"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max="100"
+                        placeholder="5.0"
+                        value={formData.interestRate}
+                        onChange={(e) =>
+                          handleInputChange("interestRate", e.target.value)
+                        }
+                        className={`h-12 text-base ${
+                          formErrors.interestRate
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }`}
+                      />
+                      {formErrors.interestRate && (
+                        <p className="text-sm text-destructive flex items-center mt-2">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {formErrors.interestRate}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="duration"
+                        className="text-base font-medium"
+                      >
+                        Duration (Days)
+                      </Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        placeholder="30"
+                        value={formData.duration}
+                        onChange={(e) =>
+                          handleInputChange("duration", e.target.value)
+                        }
+                        className={`h-12 text-base ${
+                          formErrors.duration
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }`}
+                      />
+                      {formErrors.duration && (
+                        <p className="text-sm text-destructive flex items-center mt-2">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {formErrors.duration}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Collateral Details */}
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl flex items-center">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                      <span className="text-primary font-bold text-sm">3</span>
+                    </div>
+                    Collateral Requirements
+                  </CardTitle>
+                  <CardDescription>
+                    Define what collateral borrowers must provide to secure the
+                    loan
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <TokenSelector
+                        ref={collateralTokenSelectorRef}
+                        selectedToken={selectedCollateralToken}
+                        onTokenSelect={handleCollateralTokenSelect}
+                        label="Collateral Token"
+                        placeholder="Select collateral token"
+                        excludeToken={selectedLoanToken}
+                        userAddress={address}
+                        showBalance={true}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label
+                          htmlFor="collateralAmount"
+                          className="text-base font-medium"
+                        >
+                          Collateral Amount
+                        </Label>
+                        {selectedCollateralToken && address && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Wallet className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              Balance:
+                            </span>
+                            {isLoadingCollateralBalance ? (
+                              <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                            ) : collateralBalanceError ? (
+                              <span className="text-destructive">Error</span>
+                            ) : (
+                              <>
+                                <span className="font-medium text-primary">
+                                  {collateralTokenBalance}{" "}
+                                  {selectedCollateralToken.symbol}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleMaxCollateralAmount}
+                                  className="h-6 px-2 text-xs text-primary hover:text-primary-foreground hover:bg-primary"
+                                  disabled={
+                                    !rawCollateralBalance ||
+                                    rawCollateralBalance === "0"
+                                  }
+                                >
+                                  MAX
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <Input
+                        id="collateralAmount"
+                        type="text"
+                        placeholder={
+                          selectedCollateralToken
+                            ? `e.g., 1500 (max ${selectedCollateralToken.decimals} decimals)`
+                            : "1500"
+                        }
+                        value={formData.collateralAmount}
+                        onChange={(e) =>
+                          handleInputChange("collateralAmount", e.target.value)
+                        }
+                        className={`h-12 text-base ${
+                          formErrors.collateralAmount
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }`}
+                      />
+                      {formErrors.collateralAmount && (
+                        <p className="text-sm text-destructive flex items-center mt-2">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {formErrors.collateralAmount}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Real-time Collateral Calculator */}
+              {collateralCalc &&
+                selectedLoanToken &&
+                selectedCollateralToken &&
+                formData.amount && (
+                  <Card className="glass luxury-shadow-lg border-primary/20 gradient-bg">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-xl flex items-center">
+                            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                              <Info className="h-5 w-5 text-primary" />
+                            </div>
+                            Live Oracle Pricing & Collateral Calculator
+                          </CardTitle>
+                          <CardDescription>
+                            Real-time calculations based on current market
+                            prices from DIA oracles • Auto-refreshes every 30s
+                          </CardDescription>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={refreshPrices}
+                          disabled={calcLoading}
+                          className="flex items-center gap-2 btn-premium"
+                        >
+                          <RefreshCw
+                            className={`h-4 w-4 ${
+                              calcLoading ? "animate-spin" : ""
+                            }`}
+                          />
+                          Refresh
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Current Market Prices */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {selectedLoanToken.symbol} Price
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full status-dot ${
+                                  prices.get(selectedLoanToken.address)?.isStale
+                                    ? "error"
+                                    : "success"
+                                }`}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {prices.get(selectedLoanToken.address)?.isStale
+                                  ? "Stale"
+                                  : "Live"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-2xl font-bold text-primary">
+                            ${collateralCalc.priceImpact.loanTokenPriceUSD}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Updated:{" "}
+                            {new Date(
+                              (prices.get(selectedLoanToken.address)
+                                ?.updatedAt || 0) * 1000
+                            ).toLocaleTimeString()}
+                          </div>
+                        </div>
+
+                        <div className="bg-card/80 backdrop-blur-sm rounded-lg p-4 border border-border luxury-shadow">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {selectedCollateralToken.symbol} Price
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full status-dot ${
+                                  prices.get(selectedCollateralToken.address)
+                                    ?.isStale
+                                    ? "error"
+                                    : "success"
+                                }`}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {prices.get(selectedCollateralToken.address)
+                                  ?.isStale
+                                  ? "Stale"
+                                  : "Live"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-2xl font-bold text-primary">
+                            $
+                            {collateralCalc.priceImpact.collateralTokenPriceUSD}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Updated:{" "}
+                            {new Date(
+                              (prices.get(selectedCollateralToken.address)
+                                ?.updatedAt || 0) * 1000
+                            ).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Exchange Rate */}
+                      <div className="bg-secondary/50 border border-secondary rounded-lg p-4 luxury-shadow">
+                        <div className="text-center">
+                          <div className="text-sm font-medium text-secondary-foreground mb-1">
+                            Exchange Rate
+                          </div>
+                          <div className="text-xl font-bold text-primary">
+                            1 {selectedLoanToken.symbol} ={" "}
+                            {collateralCalc.priceImpact.exchangeRate}{" "}
+                            {selectedCollateralToken.symbol}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Collateral Analysis - Dynamic based on health status */}
+                      <div
+                        className={`rounded-lg p-4 luxury-shadow transition-all duration-300 ${
+                          formData.collateralAmount &&
+                          parseFloat(formData.collateralAmount) > 0
+                            ? collateralCalc.isHealthy
+                              ? "bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/30"
+                              : "bg-gradient-to-r from-accent/30 to-destructive/20 border border-destructive/30"
+                            : "bg-gradient-to-r from-accent/20 to-muted/30 border border-muted-foreground/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {formData.collateralAmount &&
+                            parseFloat(formData.collateralAmount) > 0 ? (
+                              collateralCalc.isHealthy ? (
+                                <>
+                                  <CheckCircle className="h-5 w-5 text-primary" />
+                                  <span className="font-semibold text-primary">
+                                    Collateral Analysis - Well Secured
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                                  <span className="font-semibold text-destructive-foreground">
+                                    Collateral Analysis - Needs More
+                                  </span>
+                                </>
+                              )
+                            ) : (
+                              <>
+                                <Info className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-semibold text-foreground">
+                                  Collateral Requirements
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <span
+                            className={`text-sm font-medium ${
+                              formData.collateralAmount &&
+                              parseFloat(formData.collateralAmount) > 0
+                                ? collateralCalc.isHealthy
+                                  ? "text-primary"
+                                  : "text-destructive"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {collateralCalc.minRatio}% Min Ratio
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-1">
+                              {formData.collateralAmount &&
+                              parseFloat(formData.collateralAmount) > 0 &&
+                              collateralCalc.isHealthy
+                                ? "Minimum Required (Met)"
+                                : "Minimum Required"}{" "}
+                              - For {formData.amount} {selectedLoanToken.symbol}
+                            </div>
+                            <div
+                              className={`text-2xl font-bold ${
+                                formData.collateralAmount &&
+                                parseFloat(formData.collateralAmount) > 0 &&
+                                collateralCalc.isHealthy
+                                  ? "text-primary"
+                                  : "text-destructive"
+                              }`}
+                            >
+                              {collateralCalc.minCollateralAmount}{" "}
+                              {selectedCollateralToken.symbol}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              ≈{" "}
+                              {collateralCalc.priceImpact.minCollateralValueUSD}
+                            </div>
+                          </div>
+
+                          {formData.collateralAmount &&
+                            parseFloat(formData.collateralAmount) > 0 && (
+                              <div>
+                                <div className="text-sm text-muted-foreground mb-1">
+                                  Your Collateral Amount
+                                </div>
+                                <div
+                                  className={`text-2xl font-bold ${
+                                    collateralCalc.isHealthy
+                                      ? "text-primary"
+                                      : "text-destructive"
+                                  }`}
+                                >
+                                  {formData.collateralAmount}{" "}
+                                  {selectedCollateralToken.symbol}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <div
+                                    className={`w-2 h-2 rounded-full status-dot ${
+                                      collateralCalc.isHealthy
+                                        ? "success"
+                                        : "error"
+                                    }`}
+                                  />
+                                  <span
+                                    className={
+                                      collateralCalc.isHealthy
+                                        ? "text-primary"
+                                        : "text-destructive"
+                                    }
+                                  >
+                                    {collateralCalc.currentRatio}% Ratio{" "}
+                                    {collateralCalc.isHealthy
+                                      ? "(Healthy)"
+                                      : "(Insufficient)"}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Auto-fill button - Only show if not already healthy or no collateral entered */}
+                        {(!formData.collateralAmount ||
+                          parseFloat(formData.collateralAmount) === 0 ||
+                          !collateralCalc.isHealthy) && (
+                          <div className="mt-4 pt-4 border-t border-border">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                handleAutoFillMinCollateral(
+                                  collateralCalc.minCollateralAmount,
+                                  collateralCalc.minCollateralAmountRaw
+                                );
+                              }}
+                              className={`w-full btn-premium border-border text-foreground transition-all duration-300 ${
+                                formData.collateralAmount &&
+                                parseFloat(formData.collateralAmount) > 0 &&
+                                !collateralCalc.isHealthy
+                                  ? "bg-destructive/10 hover:bg-destructive/20 border-destructive/30"
+                                  : "bg-card hover:bg-accent"
+                              }`}
+                            >
+                              <div className="text-center">
+                                <div className="font-medium">
+                                  {formData.collateralAmount &&
+                                  parseFloat(formData.collateralAmount) > 0 &&
+                                  !collateralCalc.isHealthy
+                                    ? "Fix Collateral - Add Safe Amount (+0.1% buffer)"
+                                    : "Auto-fill Safe Amount (+0.1% buffer)"}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {formData.collateralAmount &&
+                                  parseFloat(formData.collateralAmount) > 0 &&
+                                  !collateralCalc.isHealthy
+                                    ? "Click to meet minimum requirements"
+                                    : "Automatically fills minimum + safety buffer"}
+                                </div>
+                              </div>
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Success message when collateral is healthy */}
+                        {formData.collateralAmount &&
+                          parseFloat(formData.collateralAmount) > 0 &&
+                          collateralCalc.isHealthy && (
+                            <div className="mt-4 pt-4 border-t border-primary/20">
+                              <div className="flex items-center justify-center gap-2 text-primary">
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-sm font-medium">
+                                  Perfect! Your collateral exceeds minimum
+                                  requirements
+                                </span>
+                              </div>
+                              <div className="text-center text-xs text-muted-foreground mt-1">
+                                Your loan is well-secured and ready to create
+                              </div>
+                            </div>
+                          )}
+                      </div>
+
+                      {calcLoading && (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                          <span className="text-sm text-muted-foreground">
+                            Calculating collateral requirements...
+                          </span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
-                {transactionState.step === "approving" && "Approving Tokens..."}
-                {transactionState.step === "creating" &&
-                  "Creating Loan Offer..."}
-                {transactionState.step === "idle" && "Create Loan Offer"}
-                {transactionState.step === "success" && "Create Another Offer"}
-                {!transactionState.isLoading && (
-                  <ArrowRight className="ml-2 h-4 w-4" />
+
+              {/* Risk Management Parameters */}
+              {recommendedParams &&
+                selectedLoanToken &&
+                selectedCollateralToken && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Info className="h-5 w-5 text-primary" />
+                      Risk Management Parameters
+                    </h3>
+                    <div className="bg-secondary/30 border border-secondary rounded-lg p-4 space-y-3 luxury-shadow">
+                      <div className="flex items-center gap-2 text-sm font-medium text-secondary-foreground">
+                        <Info className="h-4 w-4" />
+                        Recommended settings for {
+                          selectedLoanToken.symbol
+                        } → {selectedCollateralToken.symbol}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                          <div className="font-medium text-foreground">
+                            Min Collateral Ratio
+                          </div>
+                          <div className="text-lg font-bold text-primary">
+                            {formatBasisPoints(
+                              recommendedParams.minCollateralRatio
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Required at loan acceptance
+                          </div>
+                        </div>
+
+                        <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                          <div className="font-medium text-foreground">
+                            Liquidation Threshold
+                          </div>
+                          <div className="text-lg font-bold text-destructive">
+                            {formatBasisPoints(
+                              recommendedParams.liquidationThreshold
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Liquidation trigger point
+                          </div>
+                        </div>
+
+                        <div className="bg-card/80 backdrop-blur-sm rounded p-3 border border-border luxury-shadow">
+                          <div className="font-medium text-foreground">
+                            Price Staleness
+                          </div>
+                          <div className="text-lg font-bold text-accent-foreground">
+                            {formatDuration(
+                              recommendedParams.maxPriceStaleness
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Max oracle age allowed
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2 p-3 bg-accent/20 border border-accent rounded text-sm luxury-shadow">
+                        <AlertTriangle className="h-4 w-4 text-accent-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-medium text-accent-foreground">
+                            Risk Assessment
+                          </div>
+                          <div className="text-muted-foreground">
+                            Based on volatility: {selectedLoanToken.symbol} (
+                            {selectedLoanToken.volatilityTier}) lending{" "}
+                            {selectedCollateralToken.symbol} (
+                            {selectedCollateralToken.volatilityTier})
+                            collateral. Higher volatility assets require higher
+                            collateral ratios for safety.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleReset}
-                disabled={transactionState.isLoading}
-                className="h-12 text-base font-medium px-8"
-                size="lg"
-              >
-                Reset Form
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+
+              <Separator />
+
+              {/* Summary */}
+              {formData.amount &&
+                formData.interestRate &&
+                formData.duration && (
+                  <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-xl flex items-center">
+                        <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
+                          <CheckCircle className="h-5 w-5 text-primary" />
+                        </div>
+                        Loan Summary
+                      </CardTitle>
+                      <CardDescription>
+                        Review your loan offer details before creating
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Loan Amount:
+                            </span>
+                            <span className="font-semibold">
+                              {formData.amount}{" "}
+                              {selectedLoanToken?.symbol || "tokens"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Interest Rate:
+                            </span>
+                            <span className="font-semibold">
+                              {formData.interestRate}% APR
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Duration:
+                            </span>
+                            <span className="font-semibold">
+                              {formData.duration} days
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">
+                              Required Collateral:
+                            </span>
+                            <span className="font-semibold">
+                              {formData.collateralAmount}{" "}
+                              {selectedCollateralToken?.symbol || "tokens"}
+                            </span>
+                          </div>
+                          {formData.amount &&
+                            formData.interestRate &&
+                            formData.duration && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  Total Interest:
+                                </span>
+                                <span className="font-semibold text-green-600">
+                                  {(
+                                    (parseFloat(formData.amount) *
+                                      parseFloat(formData.interestRate) * // percentage rate
+                                      parseFloat(formData.duration)) /
+                                    (365 * 100)
+                                  ) // convert percentage to decimal and annualize
+                                    .toFixed(6)}{" "}
+                                  {selectedLoanToken?.symbol || "tokens"}
+                                </span>
+                              </div>
+                            )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button
+                  type="submit"
+                  disabled={transactionState.isLoading}
+                  className="flex-1 h-12 text-base font-semibold btn-premium"
+                  size="lg"
+                >
+                  {transactionState.isLoading && (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  )}
+                  {transactionState.step === "approving" &&
+                    "Approving Tokens..."}
+                  {transactionState.step === "creating" &&
+                    "Creating Loan Offer..."}
+                  {transactionState.step === "idle" && "Create Loan Offer"}
+                  {transactionState.step === "success" &&
+                    "Create Another Offer"}
+                  {!transactionState.isLoading && (
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={transactionState.isLoading}
+                  className="h-12 text-base font-medium px-8"
+                  size="lg"
+                >
+                  Reset Form
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }
