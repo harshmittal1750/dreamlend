@@ -46,6 +46,22 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
         <StructuredData data={generateOrganizationSchema()} />
+
+        {/* Google Analytics */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-NFR4X8L7V8"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-NFR4X8L7V8');
+            `,
+          }}
+        />
       </head>
       <body className="antialiased">
         <ThemeProvider
