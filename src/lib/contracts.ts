@@ -1,21 +1,23 @@
-// DreamLend Contract Configuration for Somnia L1 Testnet
-// Read contract address from environment (preferred for client: NEXT_PUBLIC_*, otherwise server-side)
+// DreamLend Multi-Chain Contract Configuration
+// This file maintains backwards compatibility while supporting multiple chains
 
-import { defineChain } from "viem";
+import { SOMNIA_TESTNET_CHAIN_ID } from "@/config/chains";
+import {
+  getDreamLendAddress,
+  getDreamerTokenAddress,
+  getRewardsDistributorAddress,
+} from "@/config/contracts";
 
-// Falls back to the previous hardcoded address if env not provided.
-export const DREAMLEND_CONTRACT_ADDRESS: string =
-  process.env.NEXT_PUBLIC_DREAMLEND_CONTRACT_ADDRESS ??
-  "0xB05fb07eb4998B54767008DCa39C4717dEFeBdE1";
-
-// Rewards System Contract Addresses
-export const DREAMER_TOKEN_ADDRESS: string =
-  process.env.NEXT_PUBLIC_DREAMER_TOKEN_ADDRESS ??
-  "0x0000000000000000000000000000000000000000"; // Update after deployment
-
-export const REWARDS_DISTRIBUTOR_ADDRESS: string =
-  process.env.NEXT_PUBLIC_REWARDS_DISTRIBUTOR_ADDRESS ??
-  "0x0000000000000000000000000000000000000000"; // Update after deployment
+// Backwards compatibility: Default to Somnia testnet addresses
+export const DREAMLEND_CONTRACT_ADDRESS: string = getDreamLendAddress(
+  SOMNIA_TESTNET_CHAIN_ID
+);
+export const DREAMER_TOKEN_ADDRESS: string = getDreamerTokenAddress(
+  SOMNIA_TESTNET_CHAIN_ID
+);
+export const REWARDS_DISTRIBUTOR_ADDRESS: string = getRewardsDistributorAddress(
+  SOMNIA_TESTNET_CHAIN_ID
+);
 
 export const DREAMLEND_ABI = [
   {
@@ -765,32 +767,11 @@ export const REWARDS_DISTRIBUTOR_ABI = [
   },
 ] as const;
 
-// Somnia L1 Testnet Configuration
-export const SOMNIA_TESTNET_CONFIG = defineChain({
-  id: 50312, // Somnia L1 testnet chain ID (placeholder - check official docs)
-  name: "Somnia Testnet",
-  network: "somnia-testnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Somnia",
-    symbol: "STT",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://dream-rpc.somnia.network"],
-    },
-    public: {
-      http: ["https://dream-rpc.somnia.network"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Somnia Explorer",
-      url: "https://explorer.testnet.somnia.network",
-    },
-  },
-  testnet: true,
-});
+// Import chain configurations from the new multi-chain system
+export {
+  somniaTestnet as SOMNIA_TESTNET_CONFIG,
+  riseTestnet as RISE_TESTNET_CONFIG,
+} from "@/config/chains";
 
 // Loan Status Enum
 export enum LoanStatus {

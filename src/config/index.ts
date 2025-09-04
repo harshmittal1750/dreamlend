@@ -1,6 +1,5 @@
 import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import type { AppKitNetwork } from "@reown/appkit/networks";
-import { SOMNIA_TESTNET_CONFIG } from "@/lib/contracts";
+import { supportedNetworks } from "./chains";
 
 // Get projectId from https://cloud.reown.com
 export const projectId =
@@ -10,16 +9,7 @@ if (!projectId) {
   throw new Error("Project ID is not defined");
 }
 
-// Define Somnia Testnet for AppKit
-const somniaTestnet: AppKitNetwork = {
-  id: SOMNIA_TESTNET_CONFIG.id,
-  name: SOMNIA_TESTNET_CONFIG.name,
-  nativeCurrency: SOMNIA_TESTNET_CONFIG.nativeCurrency,
-  rpcUrls: SOMNIA_TESTNET_CONFIG.rpcUrls,
-  blockExplorers: SOMNIA_TESTNET_CONFIG.blockExplorers,
-  testnet: SOMNIA_TESTNET_CONFIG.testnet,
-};
-
-export const networks = [somniaTestnet] as [AppKitNetwork, ...AppKitNetwork[]];
+// Export all supported networks (Somnia and RISE testnets)
+export const networks = supportedNetworks;
 
 export const ethersAdapter = new EthersAdapter();
