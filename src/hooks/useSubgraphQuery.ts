@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import React from "react";
 
 // =================================================================
@@ -88,18 +88,46 @@ interface UseSubgraphQueryState<T> {
   error: string | null;
 }
 
-export function useSubgraphQuery<T>(query: string): UseSubgraphQueryState<T> {
-  const [state, setState] = useState<UseSubgraphQueryState<T>>({
-    data: null,
-    loading: true,
-    error: null,
+// Cache implementation
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  expiresAt: number;
+}
+
+const queryCache = new Map<string, CacheEntry<any>>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const STALE_WHILE_REVALIDATE_DURATION = 2 * 60 * 1000; // 2 minutes
+
+export function useSubgraphQuery<T>(
+  query: string,
+  options: { cacheKey?: string; cacheDuration?: number } = {}
+): UseSubgraphQueryState<T> {
+  const { cacheKey = query, cacheDuration = CACHE_DURATION } = options;
+
+  const [state, setState] = useState<UseSubgraphQueryState<T>>(() => {
+    // Check cache on initial render
+    const cached = queryCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return {
+        data: cached.data,
+        loading: false,
+        error: null,
+      };
+    }
+    return {
+      data: cached?.data || null, // Use stale data if available
+      loading: true,
+      error: null,
+    };
   });
 
-  useEffect(() => {
-    if (!query) return;
+  const fetchData = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground) {
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+      }
 
-    const fetchData = async () => {
-      setState({ data: null, loading: true, error: null });
       try {
         const apiUrl = `${window.location.origin}/api/subgraph`;
         const response = await fetch(apiUrl, {
@@ -120,22 +148,75 @@ export function useSubgraphQuery<T>(query: string): UseSubgraphQueryState<T> {
           );
         }
 
-        // The actual data is nested inside the 'data' property of the response
+        // Update cache
+        const now = Date.now();
+        queryCache.set(cacheKey, {
+          data: result.data,
+          timestamp: now,
+          expiresAt: now + cacheDuration,
+        });
+
         setState({ data: result.data, loading: false, error: null });
       } catch (err: unknown) {
-        setState({
-          data: null,
+        setState((prev) => ({
+          ...prev,
           loading: false,
           error: err instanceof Error ? err.message : String(err),
-        });
+        }));
         console.error("Failed to fetch from subgraph proxy:", err);
       }
-    };
+    },
+    [query, cacheKey, cacheDuration]
+  );
 
-    fetchData();
-  }, [query]);
+  useEffect(() => {
+    if (!query) return;
+
+    const cached = queryCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached) {
+      if (cached.expiresAt > now) {
+        // Cache is fresh, use it
+        setState({ data: cached.data, loading: false, error: null });
+        return;
+      } else if (
+        cached.timestamp + cacheDuration + STALE_WHILE_REVALIDATE_DURATION >
+        now
+      ) {
+        // Cache is stale but within stale-while-revalidate window
+        setState({ data: cached.data, loading: false, error: null });
+        // Fetch in background
+        fetchData(true);
+        return;
+      }
+    }
+
+    // No cache or cache is too old, fetch normally
+    fetchData(false);
+  }, [query, cacheKey, fetchData]);
 
   return state;
+}
+
+// Function to invalidate cache entries
+export function invalidateSubgraphCache(pattern?: string) {
+  if (pattern) {
+    // Invalidate entries matching pattern
+    for (const [key] of queryCache) {
+      if (key.includes(pattern)) {
+        queryCache.delete(key);
+      }
+    }
+  } else {
+    // Clear all cache
+    queryCache.clear();
+  }
+}
+
+// Function to manually refresh a specific query
+export function refreshSubgraphQuery(cacheKey: string) {
+  queryCache.delete(cacheKey);
 }
 
 // =================================================================
@@ -169,7 +250,10 @@ export const useLoanCreatedEvents = () => {
       amountUSD
     }
   }`;
-  return useSubgraphQuery<{ loanCreateds: LoanCreatedEvent[] }>(query);
+  return useSubgraphQuery<{ loanCreateds: LoanCreatedEvent[] }>(query, {
+    cacheKey: "loanCreatedEvents",
+    cacheDuration: 3 * 60 * 1000, // 3 minutes for loan events
+  });
 };
 
 export interface ProtocolStatsCollection {
@@ -198,7 +282,10 @@ export const useLoanAcceptedEvents = () => {
   const query = `{
     loanAccepteds${defaultQueryOptions} { id loanId borrower timestamp initialCollateralRatio }
   }`;
-  return useSubgraphQuery<{ loanAccepteds: LoanAcceptedEvent[] }>(query);
+  return useSubgraphQuery<{ loanAccepteds: LoanAcceptedEvent[] }>(query, {
+    cacheKey: "loanAcceptedEvents",
+    cacheDuration: 3 * 60 * 1000,
+  });
 };
 
 // Hook to get LoanRepaid events
@@ -206,7 +293,10 @@ export const useLoanRepaidEvents = () => {
   const query = `{
       loanRepaids${defaultQueryOptions} { id loanId borrower repaymentAmount timestamp }
     }`;
-  return useSubgraphQuery<{ loanRepaids: LoanRepaidEvent[] }>(query);
+  return useSubgraphQuery<{ loanRepaids: LoanRepaidEvent[] }>(query, {
+    cacheKey: "loanRepaidEvents",
+    cacheDuration: 3 * 60 * 1000,
+  });
 };
 
 // Hook to get LoanLiquidated events
@@ -214,7 +304,10 @@ export const useLoanLiquidatedEvents = () => {
   const query = `{
       loanLiquidateds${defaultQueryOptions} { id loanId liquidator collateralClaimedByLender liquidatorReward timestamp }
     }`;
-  return useSubgraphQuery<{ loanLiquidateds: LoanLiquidatedEvent[] }>(query);
+  return useSubgraphQuery<{ loanLiquidateds: LoanLiquidatedEvent[] }>(query, {
+    cacheKey: "loanLiquidatedEvents",
+    cacheDuration: 3 * 60 * 1000,
+  });
 };
 
 // Hook to get LoanOfferCancelled events
@@ -223,7 +316,11 @@ export const useLoanOfferCancelledEvents = () => {
     loanOfferCancelleds${defaultQueryOptions} { id loanId lender timestamp }
   }`;
   return useSubgraphQuery<{ loanOfferCancelleds: LoanOfferCancelledEvent[] }>(
-    query
+    query,
+    {
+      cacheKey: "loanOfferCancelledEvents",
+      cacheDuration: 3 * 60 * 1000,
+    }
   );
 };
 
@@ -233,7 +330,11 @@ export const useLoanOfferRemovedEvents = () => {
     loanOfferRemoveds${defaultQueryOptions} { id loanId reason }
   }`;
   return useSubgraphQuery<{ loanOfferRemoveds: LoanOfferRemovedEvent[] }>(
-    query
+    query,
+    {
+      cacheKey: "loanOfferRemovedEvents",
+      cacheDuration: 3 * 60 * 1000,
+    }
   );
 };
 
@@ -253,10 +354,16 @@ export interface ProcessedLoan {
   collateralAddress: string;
   collateralAmount: bigint;
   startTime: bigint;
+  createdAt: bigint; // When the loan was created
   status: number; // 0=Pending, 1=Active, 2=Repaid, 3=Defaulted, 4=Cancelled
   // Historical price data from loan creation
   historicalPriceUSD?: string; // Price of loan token when created
   historicalAmountUSD?: string; // USD value of loan amount when created
+  // New fields for enhanced loan management
+  minCollateralRatioBPS: bigint;
+  liquidationThresholdBPS: bigint;
+  maxPriceStaleness: bigint;
+  repaidAmount: bigint;
 }
 
 // Determine loan status based on events
@@ -329,10 +436,16 @@ export const processLoansFromSubgraph = (
       collateralAddress: loan.collateralAddress,
       collateralAmount: BigInt(loan.collateralAmount),
       startTime: BigInt(startTime),
+      createdAt: BigInt(loan.blockTimestamp),
       status,
       // Include historical price data
       historicalPriceUSD: loan.priceUSD,
       historicalAmountUSD: loan.amountUSD,
+      // Add new fields with defaults (subgraph may not have these yet)
+      minCollateralRatioBPS: BigInt(loan.minCollateralRatioBPS || "15000"),
+      liquidationThresholdBPS: BigInt(loan.liquidationThresholdBPS || "12000"),
+      maxPriceStaleness: BigInt(loan.maxPriceStaleness || "3600"),
+      repaidAmount: BigInt("0"), // Will be updated from repayment events later
     };
   });
 };

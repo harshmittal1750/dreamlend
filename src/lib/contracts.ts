@@ -6,7 +6,7 @@ import { defineChain } from "viem";
 // Falls back to the previous hardcoded address if env not provided.
 export const DREAMLEND_CONTRACT_ADDRESS: string =
   process.env.NEXT_PUBLIC_DREAMLEND_CONTRACT_ADDRESS ??
-  "0xB05fb07eb4998B54767008DCa39C4717dEFeBdE1";
+  "0xddDa4e2B1B8E6f06086F103dA6358E7aCbd020ec";
 
 // Rewards System Contract Addresses
 export const DREAMER_TOKEN_ADDRESS: string =
@@ -210,6 +210,26 @@ export const DREAMLEND_ABI = [
             type: "uint8",
             internalType: "enum DreamLend.LoanStatus",
           },
+          {
+            name: "minCollateralRatioBPS",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "liquidationThresholdBPS",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "maxPriceStaleness",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          {
+            name: "repaidAmount",
+            type: "uint256",
+            internalType: "uint256",
+          },
         ],
       },
     ],
@@ -252,6 +272,26 @@ export const DREAMLEND_ABI = [
         type: "uint8",
         internalType: "enum DreamLend.LoanStatus",
       },
+      {
+        name: "minCollateralRatioBPS",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "liquidationThresholdBPS",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "maxPriceStaleness",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "repaidAmount",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
     stateMutability: "view",
   },
@@ -268,6 +308,58 @@ export const DREAMLEND_ABI = [
     inputs: [{ name: "loanId", type: "uint256", internalType: "uint256" }],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "addCollateral",
+    inputs: [
+      { name: "loanId", type: "uint256", internalType: "uint256" },
+      { name: "additionalAmount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "removeCollateral",
+    inputs: [
+      { name: "loanId", type: "uint256", internalType: "uint256" },
+      { name: "removeAmount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "makePartialRepayment",
+    inputs: [
+      { name: "loanId", type: "uint256", internalType: "uint256" },
+      { name: "repaymentAmount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getLoanRepaymentInfo",
+    inputs: [{ name: "loanId", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      { name: "totalOwed", type: "uint256", internalType: "uint256" },
+      { name: "repaidAmount", type: "uint256", internalType: "uint256" },
+      { name: "remainingAmount", type: "uint256", internalType: "uint256" },
+      { name: "interestAccrued", type: "uint256", internalType: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getLoanHealthFactor",
+    inputs: [{ name: "loanId", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      { name: "currentRatio", type: "uint256", internalType: "uint256" },
+      { name: "priceStale", type: "bool", internalType: "bool" },
+    ],
+    stateMutability: "view",
   },
   {
     type: "event",
@@ -442,6 +534,123 @@ export const DREAMLEND_ABI = [
       },
       {
         name: "repaymentAmount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "timestamp",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "CollateralAdded",
+    inputs: [
+      {
+        name: "loanId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "borrower",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "amount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "newCollateralRatio",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "timestamp",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "CollateralRemoved",
+    inputs: [
+      {
+        name: "loanId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "borrower",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "amount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "newCollateralRatio",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "timestamp",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "PartialRepayment",
+    inputs: [
+      {
+        name: "loanId",
+        type: "uint256",
+        indexed: true,
+        internalType: "uint256",
+      },
+      {
+        name: "borrower",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "repaymentAmount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "totalRepaidAmount",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "remainingAmount",
         type: "uint256",
         indexed: false,
         internalType: "uint256",
@@ -814,6 +1023,10 @@ export interface Loan {
   collateralAmount: bigint;
   startTime: bigint;
   status: LoanStatus;
+  minCollateralRatioBPS: bigint;
+  liquidationThresholdBPS: bigint;
+  maxPriceStaleness: bigint;
+  repaidAmount: bigint;
 }
 
 export interface CreateLoanOfferParams {

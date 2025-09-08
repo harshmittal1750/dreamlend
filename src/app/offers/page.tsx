@@ -33,6 +33,7 @@ import {
   LoanWithPriceComparison,
 } from "@/hooks/useLivePriceComparison";
 import { useRewards } from "@/hooks/useRewards";
+import { TransactionModal } from "@/components/TransactionModal";
 import {
   CheckCircle,
   AlertCircle,
@@ -101,6 +102,7 @@ export default function OffersPage() {
     acceptLoanOffer,
     cancelLoanOffer,
     transactionState,
+    resetTransactionState,
     isConnected,
     address,
   } = useP2PLending();
@@ -235,56 +237,7 @@ export default function OffersPage() {
   //   return (interestAPR + rewardsAPR).toFixed(2);
   // };
 
-  const getStepStatus = (step: string) => {
-    if (transactionState.step === step && transactionState.isLoading) {
-      return "loading";
-    }
-    if (transactionState.step === step && transactionState.isSuccess) {
-      return "success";
-    }
-    if (transactionState.step === step && transactionState.isError) {
-      return "error";
-    }
-    if (
-      transactionState.step === "success" &&
-      (step === "approving" || step === "accepting")
-    ) {
-      return "success";
-    }
-    return "idle";
-  };
-
-  const renderStepIndicator = (step: string, label: string) => {
-    const status = getStepStatus(step);
-
-    return (
-      <div className="flex items-center space-x-2">
-        {status === "loading" && (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        )}
-        {status === "success" && (
-          <CheckCircle className="h-4 w-4 text-success" />
-        )}
-        {status === "error" && (
-          <AlertCircle className="h-4 w-4 text-destructive" />
-        )}
-        {status === "idle" && (
-          <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
-        )}
-        <span
-          className={`text-sm ${
-            status === "success"
-              ? "text-success"
-              : status === "error"
-                ? "text-destructive"
-                : "text-muted-foreground"
-          }`}
-        >
-          {label}
-        </span>
-      </div>
-    );
-  };
+  // Transaction progress now handled by TransactionModal component
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -319,37 +272,7 @@ export default function OffersPage() {
         </div>
       </div>
 
-      {transactionState.step !== "idle" && selectedLoanId && (
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <h3 className="font-medium mb-3">Transaction Progress</h3>
-            <div className="space-y-2">
-              {renderStepIndicator("approving", "Approve Collateral Token")}
-              <div className="flex items-center justify-center">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </div>
-              {renderStepIndicator("accepting", "Accept Loan Offer")}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {transactionState.isError && (
-        <Alert className="mb-6" variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{transactionState.error}</AlertDescription>
-        </Alert>
-      )}
-
-      {transactionState.isSuccess && (
-        <Alert className="mb-6" variant="default">
-          <CheckCircle className="h-4 w-4 text-success" />
-          <AlertDescription>
-            Loan offer accepted successfully! Transaction hash:{" "}
-            {transactionState.hash?.slice(0, 10)}...
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Transaction Progress - Now handled by TransactionModal */}
 
       {(subgraphError || pricesError) && (
         <Alert className="mb-6" variant="destructive">
@@ -772,6 +695,37 @@ export default function OffersPage() {
           </Card>
         </div>
       )}
+
+      {/* Transaction Modal */}
+      <TransactionModal
+        isOpen={transactionState.step !== "idle"}
+        onClose={resetTransactionState}
+        transactionState={transactionState}
+        onReset={resetTransactionState}
+        onViewLoans={() => {
+          resetTransactionState();
+          window.location.href = "/my-loans";
+        }}
+        title="Accepting Loan Offer"
+        successTitle="Loan Accepted!"
+        successDescription="You have successfully accepted the loan offer! The funds have been transferred to your wallet."
+        steps={{
+          approval: {
+            title: "Approve Collateral Token",
+            description: "Allow the contract to use your collateral tokens",
+            loadingText: "Waiting for wallet confirmation...",
+            successText: "Collateral token approved successfully",
+            errorText: "Failed to approve collateral token",
+          },
+          transaction: {
+            title: "Accept Loan Offer",
+            description: "Complete the loan acceptance transaction",
+            loadingText: "Processing loan acceptance...",
+            successText: "Loan offer accepted successfully!",
+            errorText: "Failed to accept loan offer",
+          },
+        }}
+      />
     </div>
   );
 }
