@@ -28,6 +28,9 @@ export interface TransactionState {
     | "repaying"
     | "liquidating"
     | "cancelling"
+    | "adding_collateral"
+    | "removing_collateral"
+    | "partial_repaying"
     | "success"
     | "error";
 }
@@ -186,6 +189,14 @@ export const useP2PLending = () => {
           collateralAmount: BigInt(loan.collateralAmount.toString()),
           startTime: BigInt(loan.startTime.toString()),
           status: loan.status,
+          minCollateralRatioBPS: BigInt(
+            loan.minCollateralRatioBPS?.toString() || "0"
+          ),
+          liquidationThresholdBPS: BigInt(
+            loan.liquidationThresholdBPS?.toString() || "0"
+          ),
+          maxPriceStaleness: BigInt(loan.maxPriceStaleness?.toString() || "0"),
+          repaidAmount: BigInt(loan.repaidAmount?.toString() || "0"),
         };
       } catch (error) {
         console.error("Error fetching loan details:", error);
@@ -750,6 +761,216 @@ export const useP2PLending = () => {
     fetchBorrowerLoans,
   ]);
 
+  // Add collateral to loan
+  const addCollateral = useCallback(
+    async (loanId: bigint, additionalAmount: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "adding_collateral",
+        });
+
+        const contract = await getWriteContract();
+        const tx = await contract.addCollateral(loanId, additionalAmount);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchBorrowerLoans();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to add collateral";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getWriteContract, fetchBorrowerLoans, fetchLenderLoans]
+  );
+
+  // Remove collateral from loan
+  const removeCollateral = useCallback(
+    async (loanId: bigint, removeAmount: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "removing_collateral",
+        });
+
+        const contract = await getWriteContract();
+        const tx = await contract.removeCollateral(loanId, removeAmount);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchBorrowerLoans();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to remove collateral";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getWriteContract, fetchBorrowerLoans, fetchLenderLoans]
+  );
+
+  // Make partial repayment
+  const makePartialRepayment = useCallback(
+    async (loanId: bigint, repaymentAmount: bigint, loan: Loan) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Step 1: Approve repayment tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(loan.tokenAddress, repaymentAmount);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Make partial repayment
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "partial_repaying",
+        }));
+
+        const contract = await getWriteContract();
+        const tx = await contract.makePartialRepayment(loanId, repaymentAmount);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchBorrowerLoans();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to make partial repayment";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchBorrowerLoans,
+      fetchLenderLoans,
+    ]
+  );
+
+  // Get loan repayment info
+  const getLoanRepaymentInfo = useCallback(
+    async (loanId: bigint) => {
+      try {
+        const contract = await getReadContract();
+        const result = await contract.getLoanRepaymentInfo(loanId);
+        return {
+          totalOwed: result[0],
+          repaidAmount: result[1],
+          remainingAmount: result[2],
+          interestAccrued: result[3],
+        };
+      } catch (error) {
+        console.error("Failed to get loan repayment info:", error);
+        throw error;
+      }
+    },
+    [getReadContract]
+  );
+
+  // Get loan health factor
+  const getLoanHealthFactor = useCallback(
+    async (loanId: bigint) => {
+      try {
+        const contract = await getReadContract();
+        const result = await contract.getLoanHealthFactor(loanId);
+        return {
+          currentRatio: result[0],
+          priceStale: result[1],
+        };
+      } catch (error) {
+        console.error("Failed to get loan health factor:", error);
+        throw error;
+      }
+    },
+    [getReadContract]
+  );
+
   return {
     // State
     transactionState,
@@ -775,12 +996,17 @@ export const useP2PLending = () => {
     repayLoan,
     liquidateLoan,
     cancelLoanOffer,
+    addCollateral,
+    removeCollateral,
+    makePartialRepayment,
     approveToken,
 
     // Utility functions
     calculateInterest,
     calculateTotalRepayment,
     isLoanDefaulted,
+    getLoanRepaymentInfo,
+    getLoanHealthFactor,
     formatLoanData,
     resetTransactionState,
 

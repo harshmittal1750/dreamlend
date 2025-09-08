@@ -88,9 +88,9 @@ export default function Home() {
     },
     {
       icon: TrendingUp,
-      title: "Competitive Market Rates",
+      title: "Advanced Loan Management",
       description:
-        "Dynamic, market-driven interest rates ensure optimal pricing for both lenders and borrowers in real-time.",
+        "Add/remove collateral dynamically and make partial repayments to optimize your loan health and reduce interest costs.",
       color: "text-green-600",
     },
   ];
@@ -98,6 +98,8 @@ export default function Home() {
   const benefits = [
     "Trustless smart contract execution",
     "Real-time oracle price feeds",
+    "Dynamic collateral management",
+    "Partial repayment flexibility",
     "Automated liquidation protection",
     "Multi-token collateral support",
     "Flexible loan durations",
@@ -334,7 +336,9 @@ export default function Home() {
                   {[
                     "Browse available loan offers and find terms that match your needs",
                     "Provide collateral and accept the loan in a single transaction",
-                    "Repay the loan with interest to unlock your collateral",
+                    "Manage your loan health by adding/removing collateral as needed",
+                    "Make partial repayments to reduce interest and improve loan health",
+                    "Repay the remaining balance to unlock your collateral",
                   ].map((step, index) => (
                     <div key={index} className="flex items-start space-x-3">
                       <Badge

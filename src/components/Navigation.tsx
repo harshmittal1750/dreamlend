@@ -26,7 +26,7 @@ import { useState } from "react";
 export function Navigation() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { isConnected, address, activeLoanOfferIds } = useP2PLending();
+  const { isConnected, address } = useP2PLending();
   const {
     pendingRewards,
     formatDreamAmount,
@@ -50,7 +50,7 @@ export function Navigation() {
       href: "/offers",
       label: "Offers",
       icon: List,
-      badge: activeLoanOfferIds?.length || 0,
+      // badge: activeLoanOfferIds?.length || 0,
     },
     {
       href: "/my-loans",
@@ -120,14 +120,14 @@ export function Navigation() {
                   >
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
+                    {/* {item.badge !== undefined && item.badge > 0 && (
                       <Badge
                         variant="secondary"
                         className="ml-1 text-xs h-5 min-w-5 bg-background/90 text-foreground border-0 shadow-sm"
                       >
                         {item.badge}
                       </Badge>
-                    )}
+                    )} */}
                   </Button>
                 </Link>
               );
@@ -230,14 +230,14 @@ export function Navigation() {
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
-                      {item.badge !== undefined && item.badge > 0 && (
+                      {/* {item.badge !== undefined && item.badge > 0 && (
                         <Badge
                           variant="secondary"
                           className="ml-auto text-xs h-5 min-w-5"
                         >
                           {item.badge}
                         </Badge>
-                      )}
+                      )} */}
                     </Button>
                   </Link>
                 );

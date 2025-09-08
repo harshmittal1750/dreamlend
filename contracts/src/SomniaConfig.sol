@@ -51,15 +51,15 @@ library SomniaConfig {
 
     // Token addresses on Somnia testnet (PLACEHOLDER ADDRESSES - REPLACE BEFORE PRODUCTION)
     address public constant USDT_TOKEN =
-        address(0x5C99fEb638C1959144696a77CC900c58A4B4EB6F); // PLACEHOLDER
+        address(0x5C99fEb638C1959144696a77CC900c58A4B4EB6F);
     address public constant USDC_TOKEN =
-        address(0x571D9915eA4D187b7f0b1460fd0432D7Cce74c47); // PLACEHOLDER
+        address(0x571D9915eA4D187b7f0b1460fd0432D7Cce74c47);
     address public constant BTC_TOKEN =
-        address(0xE218717fE38D582B8C00a8D6363f5BC7BF32a8B6); // PLACEHOLDER
+        address(0xE218717fE38D582B8C00a8D6363f5BC7BF32a8B6);
     address public constant ARB_TOKEN =
-        address(0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1); // UNASSIGNED PLACEHOLDER
+        address(0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1);
     address public constant SOL_TOKEN =
-        address(0x71264e1321E1980b32002EAF6b24759DfBA5E281); // PLACEHOLDER
+        address(0x71264e1321E1980b32002EAF6b24759DfBA5E281);
 
     // Default oracle parameters
     uint256 public constant DEFAULT_MIN_COLLATERAL_RATIO = 15000; // 150%

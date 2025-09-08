@@ -81,6 +81,10 @@ export function useLivePriceComparison(
   // Ref to store the current timeout for cleanup
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Ref to store current loans to avoid dependency issues
+  const loansRef = useRef(loans);
+  loansRef.current = loans;
+
   // Memoized unique tokens that need price fetching
   const uniquePriceFeeds = useMemo(() => {
     const tokenAddresses = new Set<string>();
@@ -98,7 +102,7 @@ export function useLivePriceComparison(
         return getPriceFeedAddress(tokenAddress);
       }
     );
-  }, [loans]);
+  }, [loans.map((l) => `${l.tokenAddress}-${l.collateralAddress}`).join(",")]);
 
   /**
    * Calculate price change percentage and direction
@@ -139,7 +143,7 @@ export function useLivePriceComparison(
     if (uniquePriceFeeds.length === 0) {
       setState((prev) => ({
         ...prev,
-        loans: loans.map((loan) => ({
+        loans: loansRef.current.map((loan) => ({
           ...loan,
           currentLoanValueUSD: "0.00",
           currentCollateralValueUSD: "0.00",
@@ -171,83 +175,88 @@ export function useLivePriceComparison(
       const priceMap = MulticallUtil.createPriceMap(priceDataList);
 
       // Process loans with current price data and historical comparison
-      const enhancedLoans: LoanWithPriceComparison[] = loans.map((loan) => {
-        const currentTokenPrice = priceMap.get(loan.tokenAddress.toLowerCase());
-        const currentCollateralPrice = priceMap.get(
-          loan.collateralAddress.toLowerCase()
-        );
-
-        // Get token info for decimals
-        const loanTokenInfo = getTokenByAddress(loan.tokenAddress);
-        const collateralTokenInfo = getTokenByAddress(loan.collateralAddress);
-
-        let currentLoanValueUSD = "0.00";
-        let currentCollateralValueUSD = "0.00";
-        let loanTokenPriceChange = 0;
-        let loanTokenPriceDirection: "up" | "down" | "unchanged" = "unchanged";
-        let priceChangeIndicator = {
-          percentage: "0.00%",
-          isPositive: false,
-          isSignificant: false,
-        };
-
-        if (currentTokenPrice && loanTokenInfo) {
-          // Calculate current USD value of loan amount
-          currentLoanValueUSD = MulticallUtil.calculateUSDValue(
-            loan.amount,
-            loanTokenInfo.decimals,
-            currentTokenPrice
+      const enhancedLoans: LoanWithPriceComparison[] = loansRef.current.map(
+        (loan) => {
+          const currentTokenPrice = priceMap.get(
+            loan.tokenAddress.toLowerCase()
+          );
+          const currentCollateralPrice = priceMap.get(
+            loan.collateralAddress.toLowerCase()
           );
 
-          // Compare with historical price if available
-          if (loan.historicalPriceUSD) {
-            const priceChange = calculatePriceChange(
-              loan.historicalPriceUSD,
-              currentTokenPrice.priceUSD
+          // Get token info for decimals
+          const loanTokenInfo = getTokenByAddress(loan.tokenAddress);
+          const collateralTokenInfo = getTokenByAddress(loan.collateralAddress);
+
+          let currentLoanValueUSD = "0.00";
+          let currentCollateralValueUSD = "0.00";
+          let loanTokenPriceChange = 0;
+          let loanTokenPriceDirection: "up" | "down" | "unchanged" =
+            "unchanged";
+          let priceChangeIndicator = {
+            percentage: "0.00%",
+            isPositive: false,
+            isSignificant: false,
+          };
+
+          if (currentTokenPrice && loanTokenInfo) {
+            // Calculate current USD value of loan amount
+            currentLoanValueUSD = MulticallUtil.calculateUSDValue(
+              loan.amount,
+              loanTokenInfo.decimals,
+              currentTokenPrice
             );
 
-            loanTokenPriceChange = priceChange.percentage;
-            loanTokenPriceDirection = priceChange.direction;
+            // Compare with historical price if available
+            if (loan.historicalPriceUSD) {
+              const priceChange = calculatePriceChange(
+                loan.historicalPriceUSD,
+                currentTokenPrice.priceUSD
+              );
 
-            priceChangeIndicator = {
-              percentage: `${priceChange.percentage >= 0 ? "+" : ""}${priceChange.percentage.toFixed(2)}%`,
-              isPositive: priceChange.percentage > 0,
-              isSignificant: priceChange.isSignificant,
-            };
+              loanTokenPriceChange = priceChange.percentage;
+              loanTokenPriceDirection = priceChange.direction;
+
+              priceChangeIndicator = {
+                percentage: `${priceChange.percentage >= 0 ? "+" : ""}${priceChange.percentage.toFixed(2)}%`,
+                isPositive: priceChange.percentage > 0,
+                isSignificant: priceChange.isSignificant,
+              };
+            }
           }
+
+          if (currentCollateralPrice && collateralTokenInfo) {
+            // Calculate current USD value of collateral amount
+            currentCollateralValueUSD = MulticallUtil.calculateUSDValue(
+              loan.collateralAmount,
+              collateralTokenInfo.decimals,
+              currentCollateralPrice
+            );
+          }
+
+          const hasPriceErrors =
+            !currentTokenPrice?.success || !currentCollateralPrice?.success;
+          const isStalePrice =
+            currentTokenPrice?.isStale ||
+            currentCollateralPrice?.isStale ||
+            false;
+
+          return {
+            ...loan,
+            currentTokenPrice,
+            currentCollateralPrice,
+            currentLoanValueUSD,
+            currentCollateralValueUSD,
+            loanTokenPriceChange,
+            loanTokenPriceDirection,
+            historicalLoanValueUSD: loan.historicalAmountUSD || "0.00",
+            priceChangeIndicator,
+            pricesLastUpdated: Date.now(),
+            hasPriceErrors,
+            isStalePrice,
+          };
         }
-
-        if (currentCollateralPrice && collateralTokenInfo) {
-          // Calculate current USD value of collateral amount
-          currentCollateralValueUSD = MulticallUtil.calculateUSDValue(
-            loan.collateralAmount,
-            collateralTokenInfo.decimals,
-            currentCollateralPrice
-          );
-        }
-
-        const hasPriceErrors =
-          !currentTokenPrice?.success || !currentCollateralPrice?.success;
-        const isStalePrice =
-          currentTokenPrice?.isStale ||
-          currentCollateralPrice?.isStale ||
-          false;
-
-        return {
-          ...loan,
-          currentTokenPrice,
-          currentCollateralPrice,
-          currentLoanValueUSD,
-          currentCollateralValueUSD,
-          loanTokenPriceChange,
-          loanTokenPriceDirection,
-          historicalLoanValueUSD: loan.historicalAmountUSD || "0.00",
-          priceChangeIndicator,
-          pricesLastUpdated: Date.now(),
-          hasPriceErrors,
-          isStalePrice,
-        };
-      });
+      );
 
       setState({
         loans: enhancedLoans,
@@ -277,7 +286,6 @@ export function useLivePriceComparison(
     }
   }, [
     uniquePriceFeeds,
-    loans,
     calculatePriceChange,
     enableAutoRefresh,
     refreshInterval,
@@ -352,10 +360,10 @@ export function useLivePriceComparison(
 
   // Initial fetch when loans change
   React.useEffect(() => {
-    if (loans.length > 0) {
+    if (loansRef.current.length > 0) {
       fetchLivePrices();
     }
-  }, [loans, fetchLivePrices]);
+  }, [fetchLivePrices, loans.length]);
 
   return {
     // Enhanced loan data with price comparison

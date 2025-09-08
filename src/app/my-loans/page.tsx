@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -27,6 +28,8 @@ import {
   useLivePriceComparison,
   LoanWithPriceComparison,
 } from "@/hooks/useLivePriceComparison";
+import { LoanHealthManager } from "@/components/LoanHealthManager";
+import { PartialRepaymentManager } from "@/components/PartialRepaymentManager";
 import {
   CheckCircle,
   AlertCircle,
@@ -37,6 +40,8 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  Eye,
+  ChevronRight,
 } from "lucide-react";
 import { ethers } from "ethers";
 import { getTokenByAddress } from "@/config/tokens";
@@ -60,6 +65,11 @@ interface LoanWithDetails extends LoanWithPriceComparison {
   progressPercent: number;
   tokenInfo?: TokenInfo;
   collateralInfo?: TokenInfo;
+  // Add missing Loan fields with defaults
+  minCollateralRatioBPS: bigint;
+  liquidationThresholdBPS: bigint;
+  maxPriceStaleness: bigint;
+  repaidAmount: bigint;
 }
 
 export default function MyLoansPage() {
@@ -186,6 +196,11 @@ export default function MyLoansPage() {
         progressPercent,
         tokenInfo: tokenInfo || undefined,
         collateralInfo: collateralInfo || undefined,
+        // Add missing fields with defaults
+        minCollateralRatioBPS: loan.minCollateralRatioBPS || 0n,
+        liquidationThresholdBPS: loan.liquidationThresholdBPS || 0n,
+        maxPriceStaleness: loan.maxPriceStaleness || 0n,
+        repaidAmount: loan.repaidAmount || 0n,
       };
     },
     [calculateInterest, calculateTotalRepayment, isLoanDefaulted]
@@ -394,21 +409,33 @@ export default function MyLoansPage() {
             <TableHead>Progress</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Action</TableHead>
+            <TableHead>View</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loans.map((loan) => (
-            <TableRow key={loan.id.toString()}>
+            <TableRow
+              key={loan.id.toString()}
+              className="cursor-pointer hover:bg-primary/5 transition-all duration-200 group"
+              onClick={() =>
+                (window.location.href = `/my-loans/${loan.id.toString()}`)
+              }
+            >
               <TableCell className="font-medium">
-                #{loan.id.toString()}
+                <div className="flex items-center space-x-2">
+                  <div className="text-primary font-semibold group-hover:text-primary/80 transition-colors">
+                    {loan.id.toString()}
+                  </div>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground group-hover:text-primary/60 transition-all duration-200 opacity-0 group-hover:opacity-100" />
+                </div>
               </TableCell>
               <TableCell>
                 <div>
-                  <p className="font-medium">
+                  <p className="font-medium group-hover:text-foreground/90 transition-colors">
                     {parseFloat(loan.formattedAmount).toFixed(4)}{" "}
                     {loan.tokenInfo?.symbol || "Tokens"}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
                     {loan.tokenAddress.slice(0, 6)}...
                     {loan.tokenAddress.slice(-4)}
                   </p>
@@ -420,18 +447,18 @@ export default function MyLoansPage() {
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex items-center space-x-1">
-                  <Calendar className="h-3 w-3 text-gray-500" />
+                <div className="flex items-center space-x-1 group-hover:text-foreground/90 transition-colors">
+                  <Calendar className="h-3 w-3 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors" />
                   <span>{Math.round(loan.formattedDuration)} days</span>
                 </div>
               </TableCell>
               <TableCell>
                 <div>
-                  <p className="font-medium">
+                  <p className="font-medium group-hover:text-foreground/90 transition-colors">
                     {parseFloat(loan.formattedCollateralAmount).toFixed(4)}{" "}
                     {loan.collateralInfo?.symbol || "Tokens"}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
                     {loan.collateralAddress.slice(0, 6)}...
                     {loan.collateralAddress.slice(-4)}
                   </p>
@@ -440,11 +467,11 @@ export default function MyLoansPage() {
               {userRole === "borrower" && (
                 <TableCell>
                   <div>
-                    <p className="font-medium">
+                    <p className="font-medium group-hover:text-foreground/90 transition-colors">
                       {parseFloat(loan.formattedTotalRepayment).toFixed(4)}{" "}
                       {loan.tokenInfo?.symbol || "Tokens"}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
                       Interest: {parseFloat(loan.formattedInterest).toFixed(4)}{" "}
                       {loan.tokenInfo?.symbol || "Tokens"}
                     </p>
@@ -496,7 +523,20 @@ export default function MyLoansPage() {
                   {loan.statusText}
                 </Badge>
               </TableCell>
-              <TableCell>{getActionButton(loan, userRole)}</TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                {getActionButton(loan, userRole)}
+              </TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <Link href={`/my-loans/${loan.id.toString()}`}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -45,6 +45,7 @@ contract DreamLend is ReentrancyGuard, Ownable {
         uint256 minCollateralRatioBPS; // Minimum required collateralization ratio at loan acceptance (e.g., 15000 for 150%)
         uint256 liquidationThresholdBPS; // Collateralization ratio below which loan can be liquidated (e.g., 12000 for 120%)
         uint256 maxPriceStaleness; // Maximum age of oracle price data (in seconds)
+        uint256 repaidAmount; // Amount already repaid (for partial repayments)
     }
 
     // ============ Constants ============
@@ -127,6 +128,31 @@ contract DreamLend is ReentrancyGuard, Ownable {
     event RewardsDistributorSet(
         address indexed oldDistributor,
         address indexed newDistributor
+    );
+
+    event CollateralAdded(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 amount,
+        uint256 newCollateralRatio,
+        uint256 timestamp
+    );
+
+    event CollateralRemoved(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 amount,
+        uint256 newCollateralRatio,
+        uint256 timestamp
+    );
+
+    event PartialRepayment(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 repaymentAmount,
+        uint256 totalRepaidAmount,
+        uint256 remainingAmount,
+        uint256 timestamp
     );
 
     // ============ Constructor ============
@@ -407,7 +433,8 @@ contract DreamLend is ReentrancyGuard, Ownable {
             status: LoanStatus.Pending,
             minCollateralRatioBPS: _minCollateralRatioBPS,
             liquidationThresholdBPS: _liquidationThresholdBPS,
-            maxPriceStaleness: _maxPriceStaleness
+            maxPriceStaleness: _maxPriceStaleness,
+            repaidAmount: 0 // Initialize repaid amount to 0
         });
 
         // Store the loan
@@ -686,6 +713,217 @@ contract DreamLend is ReentrancyGuard, Ownable {
 
         // Emit event
         emit LoanRepaid(loanId, msg.sender, totalRepayment, block.timestamp);
+    }
+
+    /**
+     * @notice Allows borrower to add additional collateral to an active loan
+     * @param loanId The ID of the loan to add collateral to
+     * @param additionalAmount Amount of additional collateral to add
+     */
+    function addCollateral(
+        uint256 loanId,
+        uint256 additionalAmount
+    ) external nonReentrant {
+        // Verify loan exists and is active
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        require(loan.status == LoanStatus.Active, "Loan is not active");
+        require(
+            msg.sender == loan.borrower,
+            "Only borrower can add collateral"
+        );
+        require(
+            additionalAmount > 0,
+            "Additional amount must be greater than 0"
+        );
+
+        // Transfer additional collateral from borrower to contract
+        IERC20(loan.collateralAddress).safeTransferFrom(
+            msg.sender,
+            address(this),
+            additionalAmount
+        );
+
+        // Update loan collateral amount
+        loan.collateralAmount += additionalAmount;
+
+        // Calculate new collateral ratio (if price feeds available)
+        uint256 newCollateralRatio = 0;
+        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
+            address(0);
+        bool hasCollateralPriceFeed = address(
+            tokenPriceFeeds[loan.collateralAddress]
+        ) != address(0);
+
+        if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+            (newCollateralRatio, ) = _getCollateralizationRatio(loanId);
+        }
+
+        // Emit event
+        emit CollateralAdded(
+            loanId,
+            msg.sender,
+            additionalAmount,
+            newCollateralRatio,
+            block.timestamp
+        );
+    }
+
+    /**
+     * @notice Allows borrower to remove collateral from an active loan (if health factor allows)
+     * @param loanId The ID of the loan to remove collateral from
+     * @param removeAmount Amount of collateral to remove
+     */
+    function removeCollateral(
+        uint256 loanId,
+        uint256 removeAmount
+    ) external nonReentrant {
+        // Verify loan exists and is active
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        require(loan.status == LoanStatus.Active, "Loan is not active");
+        require(
+            msg.sender == loan.borrower,
+            "Only borrower can remove collateral"
+        );
+        require(removeAmount > 0, "Remove amount must be greater than 0");
+        require(
+            removeAmount <= loan.collateralAmount,
+            "Cannot remove more than available collateral"
+        );
+
+        // Check if price feeds are available for collateral ratio calculation
+        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
+            address(0);
+        bool hasCollateralPriceFeed = address(
+            tokenPriceFeeds[loan.collateralAddress]
+        ) != address(0);
+
+        // If price feeds are available, ensure removal won't violate minimum collateral ratio
+        if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+            // Temporarily reduce collateral to check new ratio
+            uint256 originalCollateral = loan.collateralAmount;
+            loan.collateralAmount -= removeAmount;
+
+            (uint256 newRatio, bool priceStale) = _getCollateralizationRatio(
+                loanId
+            );
+
+            // Restore original collateral amount
+            loan.collateralAmount = originalCollateral;
+
+            require(!priceStale, "Oracle prices are too stale");
+            require(
+                newRatio >= loan.minCollateralRatioBPS,
+                "Removal would violate minimum collateral ratio"
+            );
+        }
+
+        // Update loan collateral amount
+        loan.collateralAmount -= removeAmount;
+
+        // Transfer collateral back to borrower
+        IERC20(loan.collateralAddress).safeTransfer(msg.sender, removeAmount);
+
+        // Calculate new collateral ratio for event
+        uint256 newCollateralRatio = 0;
+        if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+            (newCollateralRatio, ) = _getCollateralizationRatio(loanId);
+        }
+
+        // Emit event
+        emit CollateralRemoved(
+            loanId,
+            msg.sender,
+            removeAmount,
+            newCollateralRatio,
+            block.timestamp
+        );
+    }
+
+    /**
+     * @notice Allows borrower to make a partial repayment on an active loan
+     * @param loanId The ID of the loan to make partial repayment on
+     * @param repaymentAmount Amount to repay (principal + interest portion)
+     */
+    function makePartialRepayment(
+        uint256 loanId,
+        uint256 repaymentAmount
+    ) external nonReentrant {
+        // Verify loan exists and is active
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        require(loan.status == LoanStatus.Active, "Loan is not active");
+        require(
+            msg.sender == loan.borrower,
+            "Only borrower can make repayment"
+        );
+        require(repaymentAmount > 0, "Repayment amount must be greater than 0");
+
+        // Calculate current total owed (principal + interest)
+        uint256 timeElapsed = block.timestamp - loan.startTime;
+        uint256 annualizedAmount = (loan.amount * loan.interestRate) / 10000;
+        uint256 totalInterest = (annualizedAmount * timeElapsed) / 31557600;
+        uint256 totalOwed = loan.amount + totalInterest;
+        uint256 remainingOwed = totalOwed - loan.repaidAmount;
+
+        require(
+            repaymentAmount <= remainingOwed,
+            "Repayment amount exceeds remaining debt"
+        );
+
+        // Transfer repayment from borrower to lender
+        IERC20(loan.tokenAddress).safeTransferFrom(
+            msg.sender,
+            loan.lender,
+            repaymentAmount
+        );
+
+        // Update repaid amount
+        loan.repaidAmount += repaymentAmount;
+        uint256 newRemainingAmount = remainingOwed - repaymentAmount;
+
+        // If fully repaid, return collateral and mark as repaid
+        if (newRemainingAmount == 0) {
+            // Stop rewards for both lender and borrower BEFORE changing loan status
+            if (address(rewardsDistributor) != address(0)) {
+                rewardsDistributor.stopAccruingRewards(
+                    loan.lender,
+                    loan.amount
+                );
+                rewardsDistributor.stopAccruingRewards(
+                    loan.borrower,
+                    loan.amount
+                );
+            }
+
+            // Return collateral to borrower
+            IERC20(loan.collateralAddress).safeTransfer(
+                msg.sender,
+                loan.collateralAmount
+            );
+
+            // Update loan status
+            loan.status = LoanStatus.Repaid;
+
+            // Emit full repayment event
+            emit LoanRepaid(
+                loanId,
+                msg.sender,
+                loan.repaidAmount,
+                block.timestamp
+            );
+        }
+
+        // Emit partial repayment event
+        emit PartialRepayment(
+            loanId,
+            msg.sender,
+            repaymentAmount,
+            loan.repaidAmount,
+            newRemainingAmount,
+            block.timestamp
+        );
     }
 
     /**
@@ -1006,6 +1244,38 @@ contract DreamLend is ReentrancyGuard, Ownable {
         }
 
         return timeDefaulted || priceDefaulted;
+    }
+
+    /**
+     * @notice Gets detailed repayment information for an active loan
+     * @param loanId The loan ID to query
+     * @return totalOwed Total amount owed (principal + interest)
+     * @return repaidAmount Amount already repaid
+     * @return remainingAmount Amount still owed
+     * @return interestAccrued Total interest accrued so far
+     */
+    function getLoanRepaymentInfo(
+        uint256 loanId
+    )
+        external
+        view
+        returns (
+            uint256 totalOwed,
+            uint256 repaidAmount,
+            uint256 remainingAmount,
+            uint256 interestAccrued
+        )
+    {
+        Loan storage loan = loans[loanId];
+        require(loan.id != 0, "Loan does not exist");
+        require(loan.status == LoanStatus.Active, "Loan is not active");
+
+        uint256 timeElapsed = block.timestamp - loan.startTime;
+        uint256 annualizedAmount = (loan.amount * loan.interestRate) / 10000;
+        interestAccrued = (annualizedAmount * timeElapsed) / 31557600;
+        totalOwed = loan.amount + interestAccrued;
+        repaidAmount = loan.repaidAmount;
+        remainingAmount = totalOwed - repaidAmount;
     }
 
     /**
