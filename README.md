@@ -2,11 +2,18 @@
 
 **Built for Somnia L1 Testnet** - A decentralized peer-to-peer lending protocol with oracle-based liquidations, liquidity mining rewards, and advanced risk management.
 
+## 🎥 Demo Video
+
+[![DreamLend Demo](https://img.youtube.com/vi/0Iou8WJnigM/maxresdefault.jpg)](https://www.youtube.com/watch?v=0Iou8WJnigM)
+
+**[🎬 Watch Full Demo on YouTube](https://www.youtube.com/watch?v=0Iou8WJnigM)**
+
+[![Demo](https://img.shields.io/badge/🎬_Demo-Watch_Video-red?style=flat&logo=youtube)](https://www.youtube.com/watch?v=0Iou8WJnigM)
 [![Twitter](https://img.shields.io/badge/Twitter-@DreamlendFi-1DA1F2?style=flat&logo=twitter)](https://x.com/DreamlendFi)
 [![Architecture](https://img.shields.io/badge/Architecture-Diagram-blue)](#architecture)
 [![Somnia](https://img.shields.io/badge/Built%20for-Somnia%20L1-purple)](https://somnia.network)
 
-## 🎯 Why DreamLend is a Hit
+## Why DreamLend is a Hit
 
 - **First P2P Lending Protocol on Somnia L1** - Pioneer in decentralized lending on the fastest blockchain
 - **Oracle-Powered Liquidations** - Real-time price feeds ensure fair and accurate liquidations
@@ -14,7 +21,7 @@
 - **Advanced Risk Management** - Volatility-based collateral ratios and staleness protection
 - **Seamless UX** - Modern interface with real-time price comparisons and transaction modals
 
-## 🚀 Features
+## Features
 
 ### ✅ Current Features
 
@@ -31,10 +38,9 @@
 
 ### 🔄 Coming Soon
 
-- **Flash Loans** - Uncollateralized instant loans
+- **Orderbook Matchmaking** - Efficiently match lenders and borrowers
+- **Vaults for Lenders** - Auto-compounding interest and rewards
 - **Multi-collateral Loans** - Support for multiple collateral types per loan
-- **Mobile App** - React Native application
-- **Governance** - $DREAM token voting mechanisms
 - **Cross-chain Integration** - Bridge to other networks
 
 ## 🏗️ Architecture
@@ -82,12 +88,8 @@
 
 ### **Subgraph**
 
-- **Endpoint:** `https://api.subgraph.somnia.network/api/public/d5671b32-2846-489e-a577-e7d9702dd17b/subgraphs/dreamlend-graph/v0.0.3/`
+- **Endpoint:** [DreamLend Subgraph](https://api.subgraph.somnia.network/api/public/d5671b32-2846-489e-a577-e7d9702dd17b/subgraphs/dreamlend-graph/v0.0.3/)
 - **Purpose:** Index loan events, user activities, and protocol statistics
-
-## 🎥 Demo
-
-[**Watch DreamLend Demo Video**](https://youtube.com/watch?v=YOUR_VIDEO_ID)
 
 ## 🌟 Community Fit - Perfect for Somnia Users
 

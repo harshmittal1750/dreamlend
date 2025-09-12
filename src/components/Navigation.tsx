@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectButton } from "@/components/ConnectButton";
+import { FaucetDropdown } from "@/components/FaucetDropdown";
 import { useP2PLending } from "@/hooks/useP2PLending";
 import { useRewards } from "@/hooks/useRewards";
 import {
@@ -182,6 +183,11 @@ export function Navigation() {
               </div>
             )} */}
 
+            {/* Faucet Button */}
+            <div className="hidden md:block">
+              <FaucetDropdown />
+            </div>
+
             {/* Connect Button */}
             <div className="hidden md:block">
               <ConnectButton />
@@ -243,8 +249,9 @@ export function Navigation() {
                 );
               })}
 
-              {/* Mobile Connect Button */}
-              <div className="pt-4 border-t border-border/50">
+              {/* Mobile Faucet and Connect Buttons */}
+              <div className="pt-4 border-t border-border/50 space-y-2">
+                <FaucetDropdown />
                 <ConnectButton />
               </div>
             </div>

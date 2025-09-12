@@ -21,13 +21,14 @@ import {
   TrendingUp,
   Clock,
   Wallet,
-  BarChart3,
   Zap,
   Lock,
   Globe,
   ArrowRight,
   Sparkles,
   CheckCircle,
+  HelpCircle,
+  BookOpen,
 } from "lucide-react";
 
 const financialProductSchema = generateFinancialProductSchema({
@@ -182,7 +183,7 @@ export default function Home() {
               </div>
               <div className="flex items-center space-x-2">
                 <Shield className="h-4 w-4" />
-                <span className="text-sm font-medium">Audited</span>
+                <span className="text-sm font-medium">Audited (soon)</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Zap className="h-4 w-4" />
@@ -393,6 +394,58 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Help & Resources Section */}
+        <section className="py-16">
+          <div>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">
+                Need Help Getting Started?
+              </h2>
+              <p className="text-muted-foreground text-lg">
+                Explore our resources to learn more about DreamLend
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Link href="/how-it-works">
+                <Card className="luxury-shadow hover:luxury-shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer group">
+                  <CardContent className="p-8 text-center space-y-4">
+                    <div className="p-4 rounded-2xl bg-indigo-100 dark:bg-indigo-900/20 mx-auto w-fit group-hover:scale-110 transition-transform duration-300">
+                      <BookOpen className="h-8 w-8 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold mb-2">
+                        How It Works
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Step-by-step guide to lending and borrowing on DreamLend
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 mx-auto text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/faq">
+                <Card className="luxury-shadow hover:luxury-shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer group">
+                  <CardContent className="p-8 text-center space-y-4">
+                    <div className="p-4 rounded-2xl bg-amber-100 dark:bg-amber-900/20 mx-auto w-fit group-hover:scale-110 transition-transform duration-300">
+                      <HelpCircle className="h-8 w-8 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold mb-2">FAQ</h3>
+                      <p className="text-muted-foreground">
+                        Find answers to common questions about our platform
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 mx-auto text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Quick Actions */}
         {isConnected && (
           <section className="py-16">
@@ -405,7 +458,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
                       {
                         href: "/create",
@@ -430,14 +483,6 @@ export default function Home() {
                         description: "Manage your active loans",
                         color: "text-purple-600",
                         bgColor: "bg-purple-100 dark:bg-purple-900/20",
-                      },
-                      {
-                        href: "/analytics",
-                        icon: BarChart3,
-                        title: "Analytics",
-                        description: "Platform insights and metrics",
-                        color: "text-orange-600",
-                        bgColor: "bg-orange-100 dark:bg-orange-900/20",
                       },
                     ].map((action, index) => {
                       const Icon = action.icon;
