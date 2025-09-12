@@ -2,8 +2,8 @@
 
 import { ethersAdapter, projectId, networks } from "@/config";
 import { createAppKit } from "@reown/appkit/react";
-import React, { type ReactNode } from "react";
-
+import { useTheme } from "next-themes";
+import React, { type ReactNode, useEffect } from "react";
 if (!projectId) {
   throw new Error("Project ID is not defined");
 }
@@ -34,14 +34,38 @@ export const modal = createAppKit({
     swaps: false,
     onramp: false,
     send: false,
+    email: false,
+    socials: false,
+    receive: false,
+    pay: false,
   },
   themeVariables: {
-    "--w3m-accent": "#000000",
+    "--w3m-accent": "hsl(var(--primary))",
+    "--w3m-border-radius-master": "8px",
   },
 });
 
+function ThemeSync() {
+  const { theme, systemTheme } = useTheme();
+
+  useEffect(() => {
+    const actualTheme = theme === "system" ? systemTheme : theme;
+
+    if (modal && actualTheme) {
+      modal.setThemeMode(actualTheme as "light" | "dark");
+    }
+  }, [theme, systemTheme]);
+
+  return null;
+}
+
 function ContextProvider({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <ThemeSync />
+      {children}
+    </>
+  );
 }
 
 export default ContextProvider;
