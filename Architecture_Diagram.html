@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <title>DreamLend Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>DreamLend System Architecture</h1>
+      <div class="mermaid">
+        graph TB User[👤 User] --> Frontend[🌐 Next.js Frontend] Frontend -->
+        Subgraph[📊 The Graph Subgraph] Frontend --> DreamLend[📋 DreamLend
+        Contract] Frontend --> Rewards[🏆 Rewards Contract] DreamLend -->
+        Oracle[🔮 DIA Oracle] DreamLend --> Tokens[🪙 ERC20 Tokens] DreamLend
+        --> Rewards DreamLend --> Subgraph Rewards --> Subgraph
+      </div>
+    </div>
+    <script>
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+  </body>
+</html>

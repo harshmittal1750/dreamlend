@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+  <head>
+    <title>DreamLend User Flow</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        text-align: center;
+        color: #333;
+      }
+      .flow-section {
+        margin: 30px 0;
+      }
+      h2 {
+        color: #555;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>DreamLend User Flow Diagrams</h1>
+
+      <div class="flow-section">
+        <h2>1. Lending Flow (Creating a Loan Offer)</h2>
+        <div class="mermaid">
+          flowchart TD A[User visits /create] --> B[Connect Wallet] B -->
+          C[Select Loan Token & Amount] C --> D[Set Interest Rate & Duration] D
+          --> E[Choose Collateral Token & Amount] E --> F[Review Terms] F -->
+          G[Sign Transaction] G --> H["DreamLend.createLoanOffer()"] H -->
+          I[Tokens Escrowed in Contract] I --> J[Loan Appears in /offers] J -->
+          K[Start Earning Rewards]
+        </div>
+      </div>
+
+      <div class="flow-section">
+        <h2>2. Borrowing Flow (Accepting a Loan)</h2>
+        <div class="mermaid">
+          flowchart TD A[User visits /offers] --> B[Browse Available Loans] B
+          --> C[Select Suitable Loan] C --> D[Check Collateral Requirements] D
+          --> E[Approve Collateral Token] E --> F[Accept Loan Offer] F -->
+          G["DreamLend.acceptLoanOffer()"] G --> H[Collateral Locked] H -->
+          I[Loan Tokens Received] I --> J[Loan Status: Active] J --> K[Start
+          Earning Rewards]
+        </div>
+      </div>
+
+      <div class="flow-section">
+        <h2>3. Repayment Flow</h2>
+        <div class="mermaid">
+          flowchart TD A[User visits /my-loans] --> B[View Active Loans] B -->
+          C[Calculate Total Repayment] C --> D[Approve Repayment Token] D -->
+          E[Choose Full/Partial Repayment] E --> F[Sign Repayment Transaction] F
+          --> G["DreamLend.repayLoan() or makePartialRepayment()"] G -->
+          H[Payment Sent to Lender] H --> I{Full Repayment?} I -->|Yes|
+          J[Collateral Returned] I -->|No| K[Loan Remains Active] J --> L[Stop
+          Rewards] K --> M[Continue Earning Rewards]
+        </div>
+      </div>
+
+      <div class="flow-section">
+        <h2>4. Rewards Flow</h2>
+        <div class="mermaid">
+          flowchart TD A[User Participates in Loans] --> B[Rewards Accrue
+          Automatically] B --> C[Visit /rewards Page] C --> D[View Pending DREAM
+          Tokens] D --> E[Click Claim Rewards] E -->
+          F["RewardsDistributor.claimRewards()"] F --> G[DREAM Tokens
+          Transferred] G --> H[Rewards Balance Updated]
+        </div>
+      </div>
+
+      <div class="flow-section">
+        <h2>5. Data Flow (Frontend ↔ Blockchain)</h2>
+        <div class="mermaid">
+          flowchart LR A[Frontend] --> B[useSubgraphQuery Hook] B -->
+          C[/api/subgraph Endpoint] C --> D[The Graph Subgraph] D --> E[Indexed
+          Blockchain Events] F[Frontend] --> G[useP2PLending Hook] G -->
+          H[Ethers.js Contract Calls] H --> I[DreamLend Smart Contract] I -->
+          J[Blockchain Transaction] K[Smart Contract Events] --> L[Subgraph
+          Indexing] L --> M[Real-time UI Updates]
+        </div>
+      </div>
+    </div>
+
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        flowchart: { useMaxWidth: true },
+      });
+    </script>
+  </body>
+</html>

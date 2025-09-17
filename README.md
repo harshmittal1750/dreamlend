@@ -4,11 +4,11 @@
 
 ## 🎥 Demo Video
 
-[![DreamLend Demo](https://img.youtube.com/vi/0Iou8WJnigM/maxresdefault.jpg)](https://www.youtube.com/watch?v=0Iou8WJnigM)
+[![DreamLend Demo](https://img.youtube.com/vi/0Iou8WJnigM/maxresdefault.jpg)](https://www.youtube.com/watch?v=2e_KI3gE-Tk)
 
-**[🎬 Watch Full Demo on YouTube](https://www.youtube.com/watch?v=0Iou8WJnigM)**
+**[🎬 Watch Full Demo on YouTube](https://www.youtube.com/watch?v=2e_KI3gE-Tk)**
 
-[![Demo](https://img.shields.io/badge/🎬_Demo-Watch_Video-red?style=flat&logo=youtube)](https://www.youtube.com/watch?v=0Iou8WJnigM)
+[![Demo](https://img.shields.io/badge/🎬_Demo-Watch_Video-red?style=flat&logo=youtube)](https://www.youtube.com/watch?v=2e_KI3gE-Tk)
 [![Twitter](https://img.shields.io/badge/Twitter-@DreamlendFi-1DA1F2?style=flat&logo=twitter)](https://x.com/DreamlendFi)
 [![Architecture](https://img.shields.io/badge/Architecture-Diagram-blue)](#architecture)
 [![Somnia](https://img.shields.io/badge/Built%20for-Somnia%20L1-purple)](https://somnia.network)
@@ -45,7 +45,8 @@
 
 ## 🏗️ Architecture
 
-![Architecture Diagram](./DreamLend_Architecture_Diagram.md)
+![Architecture Diagram](/architecture_diagram.png)
+![Flow Diagram](/flow_diagram.png)
 
 **Fully On-Chain Protocol** - All core functionality runs on Somnia L1:
 
@@ -135,7 +136,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/dreamlend
+git clone https://github.com/harshmittal1750/dreamlend
 cd dreamlend
 
 # Install dependencies
@@ -158,11 +159,15 @@ forge test
 forge script script/Deploy.s.sol --rpc-url $SOMNIA_RPC_URL --broadcast
 ```
 
+## Pitch Deck
+
+[![Pitch Deck](https://img.shields.io/badge/📄_Pitch_Deck-View_Document-blue?style=flat&logo=google-drive)](./dreamlendfinance-Somnia-hackathon.pdf)
+
 ## 🔗 Links
 
 - **Website:** [dreamlend.finance](https://www.dreamlend.finance/)
 - **Twitter:** [@DreamlendFi](https://x.com/DreamlendFi)
-- **Documentation:** [docs.dreamlend.fi](https://docs.dreamlend.fi)
+- **Documentation:** [docs.dreamlend.finance](https://docs.dreamlend.finance)
 - **Somnia Network:** [somnia.network](https://somnia.network)
 
 ## 📊 Onchain Impact
