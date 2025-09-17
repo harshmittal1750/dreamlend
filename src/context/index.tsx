@@ -2,8 +2,7 @@
 
 import { ethersAdapter, projectId, networks } from "@/config";
 import { createAppKit } from "@reown/appkit/react";
-import { useTheme } from "next-themes";
-import React, { type ReactNode, useEffect } from "react";
+import React, { type ReactNode } from "react";
 if (!projectId) {
   throw new Error("Project ID is not defined");
 }
@@ -27,7 +26,7 @@ export const modal = createAppKit({
     50312: "https://somnia.network/images/branding/somnia_logo_color.png",
   },
 
-  themeMode: "light",
+  themeMode: "dark",
   features: {
     analytics: true, // Optional - defaults to your Cloud configuration
     history: false,
@@ -40,32 +39,13 @@ export const modal = createAppKit({
     pay: false,
   },
   themeVariables: {
-    "--w3m-accent": "hsl(var(--primary))",
+    "--w3m-accent": "#139C93",
     "--w3m-border-radius-master": "8px",
   },
 });
 
-function ThemeSync() {
-  const { theme, systemTheme } = useTheme();
-
-  useEffect(() => {
-    const actualTheme = theme === "system" ? systemTheme : theme;
-
-    if (modal && actualTheme) {
-      modal.setThemeMode(actualTheme as "light" | "dark");
-    }
-  }, [theme, systemTheme]);
-
-  return null;
-}
-
 function ContextProvider({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <ThemeSync />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
 
 export default ContextProvider;
