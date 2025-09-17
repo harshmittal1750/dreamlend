@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -752,6 +752,17 @@ export default function MyLoansPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid w-full my-4 items-start gap-4 ">
+        <Alert variant={"default"}>
+          <AlertCircle className="h-4 w-4 " color="red" />
+          <AlertTitle className="font-bold">
+            Note: Loan data is fetched from a subgraph and may take a few
+            minutes to update after transactions , Try refreshing the page. We
+            are working on improving this experience. Thanks for your patience!
+          </AlertTitle>
+        </Alert>
       </div>
 
       {/* Loans I'm Offering */}
