@@ -141,8 +141,28 @@ export default function OffersPage() {
   } = useRewards();
 
   const [selectedLoanId, setSelectedLoanId] = useState<bigint | null>(null);
+  const [showStuckMessage, setShowStuckMessage] = useState(false);
   const { data: protocolStats, loading: isLoadingProtocolStats } =
     useProtocolStatsCollection();
+
+  // Show stuck loading message after 10 seconds
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (isLoadingSubgraph || isLoadingPrices) {
+      timeoutId = setTimeout(() => {
+        setShowStuckMessage(true);
+      }, 10000); // 10 seconds
+    } else {
+      setShowStuckMessage(false);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isLoadingSubgraph, isLoadingPrices]);
 
   // Format loans with token information for display
   const formattedLoans = React.useMemo(() => {
@@ -283,6 +303,42 @@ export default function OffersPage() {
             {pricesError && `Failed to load prices: ${pricesError}`}
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Stuck Loading Message */}
+      {showStuckMessage && (isLoadingSubgraph || isLoadingPrices) && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="w-96 mx-4">
+            <CardContent className="pt-6 text-center">
+              <div className="mb-4">
+                <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+                <h3 className="text-lg font-semibold mb-2">
+                  Taking longer than usual...
+                </h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  The page seems to be stuck loading. This might be due to
+                  network issues or the subgraph being slow.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => window.location.reload()}
+                  className="w-full"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Page
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowStuckMessage(false)}
+                  className="w-full"
+                >
+                  Continue Waiting
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {isLoadingSubgraph || isLoadingPrices ? (
