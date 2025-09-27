@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
-import "../src/neurolend.sol";
+import "../src/NeuroLend.sol";
 import "../src/ZeroGConfig.sol";
 
 /**
@@ -11,7 +11,7 @@ import "../src/ZeroGConfig.sol";
  */
 contract Deploy0G is Script {
     // Deployment addresses will be stored here
-    neurolend public neurolend;
+    neurolend public neurolendContract;
 
     function run() external {
         // Get deployer from msg.sender (when using --sender flag)
@@ -25,8 +25,8 @@ contract Deploy0G is Script {
 
         // Deploy neurolend main contract
         console.log("\n=== Deploying neurolend Contract ===");
-        neurolend = new neurolend();
-        console.log("neurolend deployed at:", address(neurolend));
+        neurolendContract = new neurolend();
+        console.log("neurolend deployed at:", address(neurolendContract));
 
         // Display supported tokens information
         console.log("\n=== Supported Tokens Configuration ===");
@@ -64,7 +64,7 @@ contract Deploy0G is Script {
         console.log("Deployer:", deployer);
         console.log("");
         console.log("Core Contract:");
-        console.log("- neurolend:", address(neurolend));
+        console.log("- neurolend:", address(neurolendContract));
         console.log("");
         console.log("Configuration:");
         console.log("- Pyth Contract:", ZeroGConfig.PYTH_CONTRACT);
@@ -85,7 +85,7 @@ contract Deploy0G is Script {
             "\n\n",
             "# Core Contract\n",
             "neurolend_ADDRESS=",
-            vm.toString(address(neurolend)),
+            vm.toString(address(neurolendContract)),
             "\n\n",
             "# Configuration\n",
             "PYTH_CONTRACT_ADDRESS=",

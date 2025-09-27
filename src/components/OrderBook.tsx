@@ -66,106 +66,147 @@ interface LoanRequest {
 }
 
 export function OrderBook({ selectedToken, onOrderSelect }: OrderBookProps) {
-  const { 
-    address, 
-    contract, 
+  const {
+    address,
     isConnected,
-    getActiveLoanOffers,
-    getActiveBorrowRequests,
-    getLoan
+    activeLoanOfferIds,
+    activeBorrowRequestIds,
+    isLoadingOffers,
+    isLoadingRequests,
+    getLoan,
+    refetchOffers,
+    refetchRequests,
   } = useP2PLending();
   const [isLoading, setIsLoading] = useState(true);
   const [loanOffers, setLoanOffers] = useState<LoanOffer[]>([]);
   const [loanRequests, setLoanRequests] = useState<LoanRequest[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Add refresh trigger state
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Fetch real data from contract
   useEffect(() => {
     const fetchOrderBookData = async () => {
-      if (!contract || !isConnected) {
+      if (!isConnected) {
         setIsLoading(false);
+        return;
+      }
+
+      // Use the loading states from the hook
+      if (isLoadingOffers || isLoadingRequests) {
+        setIsLoading(true);
         return;
       }
 
       setIsLoading(true);
 
       try {
-        // Fetch active loan offers
-        const offerIds = await getActiveLoanOffers();
         const offers: LoanOffer[] = [];
+        const requests: LoanRequest[] = [];
 
-        for (const offerId of offerIds) {
-          try {
-            const loan = await getLoan(offerId);
-            
-            // Only include pending loan offers (lender exists, borrower is zero address)
-            if (loan.status === 0 && loan.lender !== ethers.ZeroAddress && loan.borrower === ethers.ZeroAddress) {
-              const tokenInfo = getTokenByAddress(loan.tokenAddress);
-              const collateralInfo = getTokenByAddress(loan.collateralAddress);
-              
-              offers.push({
-                id: loan.id.toString(),
-                lender: loan.lender,
-                tokenAddress: loan.tokenAddress,
-                amount: ethers.formatUnits(loan.amount, tokenInfo?.decimals || 18),
-                interestRate: Number(loan.interestRate), // Already in basis points
-                duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-                collateralAddress: loan.collateralAddress,
-                collateralAmount: ethers.formatUnits(loan.collateralAmount, collateralInfo?.decimals || 18),
-                liquidityUSD: "$0.00", // TODO: Calculate based on token prices
-                tokenInfo,
-                collateralInfo,
-              });
+        // Process loan offers if available
+        if (activeLoanOfferIds && activeLoanOfferIds.length > 0) {
+          for (const offerId of activeLoanOfferIds) {
+            try {
+              const loan = await getLoan(offerId);
+
+              // Only include pending loan offers (lender exists, borrower is zero address)
+              if (
+                loan &&
+                loan.status === 0 &&
+                loan.lender !== ethers.ZeroAddress &&
+                loan.borrower === ethers.ZeroAddress
+              ) {
+                const tokenInfo = getTokenByAddress(loan.tokenAddress);
+                const collateralInfo = getTokenByAddress(
+                  loan.collateralAddress
+                );
+
+                offers.push({
+                  id: loan.id.toString(),
+                  lender: loan.lender,
+                  tokenAddress: loan.tokenAddress,
+                  amount: ethers.formatUnits(
+                    loan.amount,
+                    tokenInfo?.decimals || 18
+                  ),
+                  interestRate: Number(loan.interestRate), // Already in basis points
+                  duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+                  collateralAddress: loan.collateralAddress,
+                  collateralAmount: ethers.formatUnits(
+                    loan.collateralAmount,
+                    collateralInfo?.decimals || 18
+                  ),
+                  liquidityUSD: "$0.00", // TODO: Calculate based on token prices
+                  tokenInfo,
+                  collateralInfo,
+                });
+              }
+            } catch (error) {
+              console.error(`Error fetching loan ${offerId}:`, error);
             }
-          } catch (error) {
-            console.error(`Error fetching loan ${offerId}:`, error);
           }
         }
 
-        // Fetch active borrow requests
-        const requestIds = await getActiveBorrowRequests();
-        const requests: LoanRequest[] = [];
+        // Process borrow requests if available
+        if (activeBorrowRequestIds && activeBorrowRequestIds.length > 0) {
+          for (const requestId of activeBorrowRequestIds) {
+            try {
+              const loan = await getLoan(requestId);
 
-        for (const requestId of requestIds) {
-          try {
-            const loan = await getLoan(requestId);
-            
-            // Only include pending borrow requests (borrower exists, lender is zero address)
-            if (loan.status === 0 && loan.borrower !== ethers.ZeroAddress && loan.lender === ethers.ZeroAddress) {
-              const tokenInfo = getTokenByAddress(loan.tokenAddress);
-              const collateralInfo = getTokenByAddress(loan.collateralAddress);
-              
-              requests.push({
-                id: loan.id.toString(),
-                borrower: loan.borrower,
-                tokenAddress: loan.tokenAddress,
-                amount: ethers.formatUnits(loan.amount, tokenInfo?.decimals || 18),
-                maxInterestRate: Number(loan.interestRate), // Already in basis points
-                duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
-                collateralAddress: loan.collateralAddress,
-                collateralAmount: ethers.formatUnits(loan.collateralAmount, collateralInfo?.decimals || 18),
-                liquidityUSD: "$0.00", // TODO: Calculate based on token prices
-                tokenInfo,
-                collateralInfo,
-              });
+              // Only include pending borrow requests (borrower exists, lender is zero address)
+              if (
+                loan &&
+                loan.status === 0 &&
+                loan.borrower !== ethers.ZeroAddress &&
+                loan.lender === ethers.ZeroAddress
+              ) {
+                const tokenInfo = getTokenByAddress(loan.tokenAddress);
+                const collateralInfo = getTokenByAddress(
+                  loan.collateralAddress
+                );
+
+                requests.push({
+                  id: loan.id.toString(),
+                  borrower: loan.borrower,
+                  tokenAddress: loan.tokenAddress,
+                  amount: ethers.formatUnits(
+                    loan.amount,
+                    tokenInfo?.decimals || 18
+                  ),
+                  maxInterestRate: Number(loan.interestRate), // Already in basis points
+                  duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+                  collateralAddress: loan.collateralAddress,
+                  collateralAmount: ethers.formatUnits(
+                    loan.collateralAmount,
+                    collateralInfo?.decimals || 18
+                  ),
+                  liquidityUSD: "$0.00", // TODO: Calculate based on token prices
+                  tokenInfo,
+                  collateralInfo,
+                });
+              }
+            } catch (error) {
+              console.error(`Error fetching request ${requestId}:`, error);
             }
-          } catch (error) {
-            console.error(`Error fetching request ${requestId}:`, error);
           }
         }
 
         // Filter by selected token if specified
-        const filteredOffers = selectedToken 
-          ? offers.filter(offer => offer.tokenInfo?.symbol === selectedToken)
+        const filteredOffers = selectedToken
+          ? offers.filter((offer) => offer.tokenInfo?.symbol === selectedToken)
           : offers;
-          
-        const filteredRequests = selectedToken 
-          ? requests.filter(request => request.tokenInfo?.symbol === selectedToken)
+
+        const filteredRequests = selectedToken
+          ? requests.filter(
+              (request) => request.tokenInfo?.symbol === selectedToken
+            )
           : requests;
 
         // Sort offers by interest rate (ascending - best rates first)
         filteredOffers.sort((a, b) => a.interestRate - b.interestRate);
-        
+
         // Sort requests by max interest rate (descending - highest rates first)
         filteredRequests.sort((a, b) => b.maxInterestRate - a.maxInterestRate);
 
@@ -180,13 +221,22 @@ export function OrderBook({ selectedToken, onOrderSelect }: OrderBookProps) {
     };
 
     fetchOrderBookData();
-  }, [selectedToken, contract, isConnected, getActiveLoanOffers, getActiveBorrowRequests, getLoan, lastUpdated]);
+  }, [
+    selectedToken,
+    isConnected,
+    activeLoanOfferIds,
+    activeBorrowRequestIds,
+    isLoadingOffers,
+    isLoadingRequests,
+    getLoan,
+    refreshTrigger,
+  ]);
 
   const handleRefresh = () => {
-    // Trigger a re-fetch by updating the dependency
-    setLastUpdated(new Date());
-    // Force re-render by clearing data first
-    setIsLoading(true);
+    // Trigger refetch from the hook and local refresh
+    refetchOffers();
+    refetchRequests();
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const formatRate = (basisPoints: number) => {
