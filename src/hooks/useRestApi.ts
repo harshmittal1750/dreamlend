@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // Base API URL
 const BASE_API_URL = "https://api.neurolend.sumitdhiman.in";
@@ -187,7 +187,13 @@ export function useRestOffersData() {
   } = useRestStats();
 
   // Filter for pending loans only (status "Pending")
-  const pendingLoans = loans.filter((loan) => loan.status === "Pending");
+  // TEMPORARILY showing all loans for debugging
+  const pendingLoans = loans; // loans.filter((loan) => loan.status === "Pending");
+  
+  // Debug logging
+  console.log("useRestOffersData - All loans:", loans);
+  console.log("useRestOffersData - Pending loans:", pendingLoans);
+  console.log("useRestOffersData - Loan statuses:", loans.map(l => l.status));
 
   const refresh = useCallback(() => {
     refetchLoans();
@@ -204,6 +210,47 @@ export function useRestOffersData() {
     totalLoans: loans.length,
     pendingLoansCount: pendingLoans.length,
     lastUpdated: Date.now(), // Simple timestamp for now
+  };
+}
+
+// Hook for my-loans page that uses REST API data
+export function useRestMyLoansData() {
+  const {
+    loans,
+    loading: loansLoading,
+    error: loansError,
+    refetch: refetchLoans,
+  } = useRestLoans();
+  const {
+    stats,
+    loading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useRestStats();
+
+  // Convert all loans to ProcessedLoan format
+  const processedLoans = React.useMemo(() => {
+    return loans.map(convertRestLoanToProcessedLoan);
+  }, [loans]);
+
+  const refresh = useCallback(() => {
+    refetchLoans();
+    refetchStats();
+  }, [refetchLoans, refetchStats]);
+
+  // Debug logging
+  console.log("useRestMyLoansData - All loans:", loans);
+  console.log("useRestMyLoansData - Processed loans:", processedLoans);
+
+  return {
+    loans: processedLoans,
+    stats,
+    loading: loansLoading || statsLoading,
+    error: loansError || statsError,
+    refresh,
+    // Additional computed data
+    totalLoans: loans.length,
+    lastUpdated: Date.now(),
   };
 }
 
@@ -227,20 +274,24 @@ export function convertRestLoanToProcessedLoan(restLoan: RestLoan) {
     }
   };
 
-  return {
+  // Debug logging for conversion
+  console.log("Converting RestLoan:", restLoan);
+  
+  // Use more realistic defaults for missing fields
+  const converted = {
     id: BigInt(restLoan.loan_id),
     lender: restLoan.lender || "0x0000000000000000000000000000000000000000",
     borrower: restLoan.borrower,
     tokenAddress:
-      restLoan.tokenAddress || "0x0000000000000000000000000000000000000000",
+      restLoan.tokenAddress || "0x4200000000000000000000000000000000000006", // Default WETH address
     amount: BigInt(restLoan.amount || "0"),
-    interestRate: BigInt(restLoan.interestRate || "0"),
-    duration: BigInt(restLoan.duration || "0"),
+    interestRate: BigInt(restLoan.interestRate || "1000"), // 10% default
+    duration: BigInt(restLoan.duration || "2592000"), // 30 days default
     collateralAddress:
       restLoan.collateralAddress ||
-      "0x0000000000000000000000000000000000000000",
-    collateralAmount: BigInt(restLoan.collateralAmount || "0"),
-    startTime: BigInt(restLoan.startTime || "0"),
+      "0x4200000000000000000000000000000000000006", // Default WETH address
+    collateralAmount: BigInt(restLoan.collateralAmount || restLoan.amount || "0"), // Use loan amount as collateral if missing
+    startTime: BigInt(restLoan.startTime || restLoan.created_at || 0),
     createdAt: BigInt(restLoan.created_at || 0),
     status: getNumericStatus(restLoan.status),
     minCollateralRatioBPS: BigInt(restLoan.minCollateralRatioBPS || "15000"),
@@ -252,4 +303,7 @@ export function convertRestLoanToProcessedLoan(restLoan: RestLoan) {
     historicalPriceUSD: restLoan.historicalPriceUSD || "0",
     historicalAmountUSD: restLoan.historicalAmountUSD || "0",
   };
+  
+  console.log("Converted ProcessedLoan:", converted);
+  return converted;
 }

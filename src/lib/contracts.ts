@@ -1,9 +1,9 @@
-// DreamLend Contract Configuration for 0G Chain Mainnet
+// neurolend Contract Configuration for 0G Chain Mainnet
 import { defineChain } from "viem";
 
-// DreamLend contract address on 0G Chain (updated with correct token addresses)
-export const DREAMLEND_CONTRACT_ADDRESS: string =
-  process.env.NEXT_PUBLIC_DREAMLEND_ADDRESS ??
+// neurolend contract address on 0G Chain (updated with correct token addresses)
+export const neurolend_CONTRACT_ADDRESS: string =
+  process.env.NEXT_PUBLIC_neurolend_ADDRESS ??
   "0x064c3e0a900743D9Ac87c778d2f6d3d5819D4f23";
 
 // Pyth Network contract address on 0G Chain
@@ -11,7 +11,7 @@ export const PYTH_CONTRACT_ADDRESS: string =
   process.env.NEXT_PUBLIC_PYTH_CONTRACT_ADDRESS ??
   "0x2880aB155794e7179c9eE2e38200202908C17B43";
 
-export const DREAMLEND_ABI = [
+export const neurolend_ABI = [
   {
     "type": "constructor",
     "inputs": [],
@@ -495,7 +495,7 @@ export const DREAMLEND_ABI = [
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct DreamLend.Loan",
+        "internalType": "struct neurolend.Loan",
         "components": [
           {
             "name": "id",
@@ -550,7 +550,7 @@ export const DREAMLEND_ABI = [
           {
             "name": "status",
             "type": "uint8",
-            "internalType": "enum DreamLend.LoanStatus"
+            "internalType": "enum neurolend.LoanStatus"
           },
           {
             "name": "minCollateralRatioBPS",
@@ -869,7 +869,7 @@ export const DREAMLEND_ABI = [
       {
         "name": "status",
         "type": "uint8",
-        "internalType": "enum DreamLend.LoanStatus"
+        "internalType": "enum neurolend.LoanStatus"
       },
       {
         "name": "minCollateralRatioBPS",

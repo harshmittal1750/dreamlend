@@ -1,19 +1,19 @@
-# DreamLend - P2P Lending Protocol on Somnia L1
+# neurolend - P2P Lending Protocol on Somnia L1
 
 **Built for Somnia L1 Testnet** - A decentralized peer-to-peer lending protocol with oracle-based liquidations, liquidity mining rewards, and advanced risk management.
 
 ## 🎥 Demo Video
 
-[![DreamLend Demo](https://img.youtube.com/vi/0Iou8WJnigM/maxresdefault.jpg)](https://www.youtube.com/watch?v=2e_KI3gE-Tk)
+[![neurolend Demo](https://img.youtube.com/vi/0Iou8WJnigM/maxresdefault.jpg)](https://www.youtube.com/watch?v=2e_KI3gE-Tk)
 
 **[🎬 Watch Full Demo on YouTube](https://www.youtube.com/watch?v=2e_KI3gE-Tk)**
 
 [![Demo](https://img.shields.io/badge/🎬_Demo-Watch_Video-red?style=flat&logo=youtube)](https://www.youtube.com/watch?v=2e_KI3gE-Tk)
-[![Twitter](https://img.shields.io/badge/Twitter-@DreamlendFi-1DA1F2?style=flat&logo=twitter)](https://x.com/DreamlendFi)
+[![Twitter](https://img.shields.io/badge/Twitter-@neurolendFi-1DA1F2?style=flat&logo=twitter)](https://x.com/neurolendFi)
 [![Architecture](https://img.shields.io/badge/Architecture-Diagram-blue)](#architecture)
 [![Somnia](https://img.shields.io/badge/Built%20for-Somnia%20L1-purple)](https://somnia.network)
 
-## Why DreamLend is a Hit
+## Why neurolend is a Hit
 
 - **First P2P Lending Protocol on Somnia L1** - Pioneer in decentralized lending on the fastest blockchain
 - **Oracle-Powered Liquidations** - Real-time price feeds ensure fair and accurate liquidations
@@ -72,7 +72,7 @@
 
 ### **Smart Contracts**
 
-- **DreamLend (Main):** `0xddDa4e2B1B8E6f06086F103dA6358E7aCbd020ec`
+- **neurolend (Main):** `0xddDa4e2B1B8E6f06086F103dA6358E7aCbd020ec`
 - **RewardsDistributor:** `0x1ee1E4d84636FFDb8de6Dc684475C8f2Bdf5699c`
 - **DreamerToken ($DREAM):** `0xf68F7B7FD9629f4990A5AB7181C2EE0E8b496B4B`
 <!-- - **SomniaConfig:** `0x[Contract Address]` -->
@@ -89,12 +89,12 @@
 
 ### **Subgraph**
 
-- **Endpoint:** [DreamLend Subgraph](https://api.subgraph.somnia.network/api/public/d5671b32-2846-489e-a577-e7d9702dd17b/subgraphs/dreamlend-graph/v0.0.3/)
+- **Endpoint:** [neurolend Subgraph](https://api.subgraph.somnia.network/api/public/d5671b32-2846-489e-a577-e7d9702dd17b/subgraphs/neurolend-graph/v0.0.3/)
 - **Purpose:** Index loan events, user activities, and protocol statistics
 
 ## 🌟 Community Fit - Perfect for Somnia Users
 
-### **Why Somnia Users Will Love DreamLend:**
+### **Why Somnia Users Will Love neurolend:**
 
 1. **Lightning-Fast Transactions** - Leverages Somnia's 400k+ TPS for instant loan operations
 2. **Ultra-Low Fees** - Minimal gas costs make micro-lending profitable
@@ -109,7 +109,7 @@
 - **Liquidity Providers** - Earn additional yield on idle assets
 - **Risk Managers** - Advanced tools for portfolio optimization
 
-## 🚀 How to Use DreamLend
+## 🚀 How to Use neurolend
 
 ### **For Lenders:**
 
@@ -136,8 +136,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/harshmittal1750/dreamlend
-cd dreamlend
+git clone https://github.com/harshmittal1750/neurolend
+cd neurolend
 
 # Install dependencies
 npm install
@@ -161,13 +161,13 @@ forge script script/Deploy.s.sol --rpc-url $SOMNIA_RPC_URL --broadcast
 
 ## Pitch Deck
 
-[![Pitch Deck](https://img.shields.io/badge/📄_Pitch_Deck-View_Document-blue?style=flat&logo=google-drive)](./dreamlendfinance-Somnia-hackathon.pdf)
+[![Pitch Deck](https://img.shields.io/badge/📄_Pitch_Deck-View_Document-blue?style=flat&logo=google-drive)](./neurolendfinance-Somnia-hackathon.pdf)
 
 ## 🔗 Links
 
-- **Website:** [dreamlend.finance](https://www.dreamlend.finance/)
-- **Twitter:** [@DreamlendFi](https://x.com/DreamlendFi)
-- **Documentation:** [docs.dreamlend.finance](https://docs.dreamlend.finance)
+- **Website:** [neurolend.finance](https://www.neurolend.finance/)
+- **Twitter:** [@neurolendFi](https://x.com/neurolendFi)
+- **Documentation:** [docs.neurolend.finance](https://docs.neurolend.finance)
 - **Somnia Network:** [somnia.network](https://somnia.network)
 
 ## 📊 Onchain Impact

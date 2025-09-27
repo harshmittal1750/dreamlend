@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# DreamLend Deployment Script for 0G Chain
-# This script deploys the DreamLend protocol to 0G Chain with Pyth Network integration
+# neurolend Deployment Script for 0G Chain
+# This script deploys the neurolend protocol to 0G Chain with Pyth Network integration
 
 set -e  # Exit on any error
 
@@ -158,7 +158,7 @@ update_frontend_config() {
     
     if [ -f "deployment-0g.env" ]; then
         # Create .env.local from deployment addresses
-        echo "# DreamLend 0G Chain Configuration" > .env.local
+        echo "# neurolend 0G Chain Configuration" > .env.local
         echo "# Generated automatically from deployment" >> .env.local
         echo "" >> .env.local
         
@@ -191,7 +191,7 @@ verify_deployment() {
         echo ""
         print_success "Deployment completed successfully!"
         echo ""
-        echo "🎯 DreamLend Protocol is now deployed on 0G Chain!"
+        echo "🎯 neurolend Protocol is now deployed on 0G Chain!"
         echo ""
         echo "📋 Next steps:"
         echo "1. Verify the token addresses in ZeroGConfig.sol match the actual 0G Chain token contracts"
@@ -219,10 +219,10 @@ verify_deployment() {
 # Main deployment function
 main() {
     echo ""
-    echo "🚀 DreamLend 0G Chain Mainnet Deployment Script"
+    echo "🚀 neurolend 0G Chain Mainnet Deployment Script"
     echo "==============================================="
     echo ""
-    echo "This script will deploy the DreamLend lending protocol to 0G Chain"
+    echo "This script will deploy the neurolend lending protocol to 0G Chain"
     echo "with support for 0G, WETH, wstETH, and USDC tokens using Pyth price feeds."
     echo ""
     
@@ -234,7 +234,7 @@ main() {
     update_frontend_config
     verify_deployment
     
-    print_success "🎉 DreamLend Protocol deployment completed successfully!"
+    print_success "🎉 neurolend Protocol deployment completed successfully!"
 }
 
 # Run main function

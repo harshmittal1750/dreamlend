@@ -9,11 +9,11 @@ if (!projectId) {
 
 // Set up metadata
 const metadata = {
-  name: "DreamLend Finance",
+  name: "neurolend Finance",
   description:
-    "DreamLend Finance a secure , smart and permission less  way to lend/borrow",
-  url: "https://www.dreamlend.finance", // origin must match your domain & subdomain
-  icons: ["https://www.dreamlend.finance/logo.png"],
+    "neurolend Finance a secure , smart and permission less  way to lend/borrow",
+  url: "https://www.neurolend.finance", // origin must match your domain & subdomain
+  icons: ["https://www.neurolend.finance/logo.png"],
 };
 
 // Create the modal

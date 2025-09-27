@@ -29,9 +29,9 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = generateSEOMetadata({
-  title: "How DreamLend Works - Complete Guide to P2P Crypto Lending",
+  title: "How neurolend Works - Complete Guide to P2P Crypto Lending",
   description:
-    "Learn how DreamLend's P2P crypto lending platform works. Step-by-step guide to lending, borrowing, earning interest, and managing your crypto loans safely.",
+    "Learn how neurolend's P2P crypto lending platform works. Step-by-step guide to lending, borrowing, earning interest, and managing your crypto loans safely.",
   canonical: "/how-it-works",
   keywords: [
     "how crypto lending works",
@@ -55,7 +55,7 @@ export default function HowItWorks() {
       step: 1,
       title: "Connect Your Wallet",
       description:
-        "Connect your Web3 wallet to DreamLend Finance. We support MetaMask, WalletConnect, and other popular wallets.",
+        "Connect your Web3 wallet to neurolend Finance. We support MetaMask, WalletConnect, and other popular wallets.",
       icon: Wallet,
       color: "text-blue-500",
     },
@@ -169,10 +169,10 @@ export default function HowItWorks() {
             Complete Guide
           </Badge>
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-            How DreamLend Works
+            How neurolend Works
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Learn how to lend, borrow, and earn with DreamLend Finance - the
+            Learn how to lend, borrow, and earn with neurolend Finance - the
             most secure P2P crypto lending platform. Follow our step-by-step
             guide to start earning up to 15% APY on your digital assets.
           </p>
@@ -274,10 +274,10 @@ export default function HowItWorks() {
         <section className="space-y-8">
           <div className="text-center space-y-4">
             <h2 className="text-3xl md:text-4xl font-bold">
-              Why Choose DreamLend Finance
+              Why Choose neurolend Finance
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Advanced features and security measures that make DreamLend the
+              Advanced features and security measures that make neurolend the
               premier P2P crypto lending platform
             </p>
           </div>
@@ -311,7 +311,7 @@ export default function HowItWorks() {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Join thousands of users who are already earning and borrowing on
-            DreamLend Finance
+            neurolend Finance
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="px-8">

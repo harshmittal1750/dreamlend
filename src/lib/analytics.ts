@@ -96,7 +96,7 @@ export const trackEvent = (
   });
 };
 
-// DreamLend-specific event tracking
+// neurolend-specific event tracking
 export const trackLendingEvent = {
   // Loan creation events
   loanOfferCreated: (amount: string, token: string, duration: string) => {

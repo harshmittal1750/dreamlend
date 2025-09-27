@@ -372,7 +372,7 @@ export function getPriceAge(price: PythPrice): number {
 }
 
 /**
- * Helper function to get price update data for DreamLend transactions
+ * Helper function to get price update data for neurolend transactions
  * Use this to manually add price updates to your contract calls
  */
 export async function getPriceUpdateForTokens(

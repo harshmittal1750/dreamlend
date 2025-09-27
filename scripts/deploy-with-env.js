@@ -45,7 +45,7 @@ function execCommand(command, cwd = process.cwd()) {
 }
 
 function main() {
-  log("🚀 Starting DreamLend Mock Token Deployment...", colors.cyan);
+  log("🚀 Starting neurolend Mock Token Deployment...", colors.cyan);
 
   // Check required environment variables
   const requiredVars = ["PRIVATE_KEY"];
@@ -150,10 +150,10 @@ function main() {
   const updateOutput = execCommand(updateCommand.join(" "));
   log(updateOutput, colors.green);
 
-  // Step 3: Redeploy DreamLend contract
-  log("\n🏗️  Step 3: Redeploying DreamLend contract...", colors.magenta);
+  // Step 3: Redeploy neurolend contract
+  log("\n🏗️  Step 3: Redeploying neurolend contract...", colors.magenta);
 
-  const dreamlendCommand = [
+  const neurolendCommand = [
     "forge script script/Deploy.s.sol",
     `--rpc-url ${RPC_URL}`,
     `--private-key ${PRIVATE_KEY}`,
@@ -161,13 +161,13 @@ function main() {
   ];
 
   if (VERIFY) {
-    dreamlendCommand.push("--verify");
+    neurolendCommand.push("--verify");
   }
 
-  const dreamlendOutput = execCommand(dreamlendCommand.join(" "), contractsDir);
-  log(dreamlendOutput, colors.green);
+  const neurolendOutput = execCommand(neurolendCommand.join(" "), contractsDir);
+  log(neurolendOutput, colors.green);
 
-  const dreamlendAddress = extractAddress(dreamlendOutput, "DreamLend");
+  const neurolendAddress = extractAddress(neurolendOutput, "neurolend");
 
   // Step 4: Mint test tokens
   log("\n🪙 Step 4: Minting test tokens...", colors.magenta);
@@ -185,7 +185,7 @@ function main() {
   // Final summary
   log("\n🎉 Deployment completed successfully!", colors.green);
   log("\n📋 Contract Addresses:", colors.cyan);
-  log(`DreamLend: ${dreamlendAddress || "❌ Failed to extract"}`, colors.green);
+  log(`neurolend: ${neurolendAddress || "❌ Failed to extract"}`, colors.green);
   Object.entries(addresses).forEach(([token, address]) => {
     log(`${token}: ${address}`, colors.green);
   });

@@ -61,6 +61,7 @@ const breadcrumbSchema = generateBreadcrumbSchema([
 export default function OrderBookPage() {
   const {
     createLoanOffer,
+    createBorrowRequest,
     transactionState,
     resetTransactionState,
     isConnected,
@@ -258,8 +259,45 @@ export default function OrderBookPage() {
       return;
     }
 
+    // Client-side validation
+    if (!selectedLoanToken) {
+      alert("Please select a loan token");
+      return;
+    }
+    if (!selectedCollateralToken) {
+      alert("Please select a collateral token");
+      return;
+    }
+    if (!formData.amount || formData.amount === "0") {
+      alert("Please enter a valid loan amount");
+      return;
+    }
+    if (!formData.interestRate || formData.interestRate === "0") {
+      alert("Please enter a valid interest rate");
+      return;
+    }
+    if (!formData.duration || formData.duration === "0") {
+      alert("Please enter a valid duration");
+      return;
+    }
+    if (!formData.collateralAmount || formData.collateralAmount === "0") {
+      alert("Please enter a valid collateral amount");
+      return;
+    }
+
     try {
       const interestRatePercentage = parseFloat(formData.interestRate);
+      if (isNaN(interestRatePercentage)) {
+        alert("Please enter a valid interest rate");
+        return;
+      }
+      
+      const durationDays = parseFloat(formData.duration);
+      if (isNaN(durationDays) || durationDays <= 0) {
+        alert("Please enter a valid duration in days");
+        return;
+      }
+
       const interestRateBasisPoints = percentageToBasisPoints(
         interestRatePercentage
       );
@@ -269,12 +307,12 @@ export default function OrderBookPage() {
         interestRate: interestRateBasisPoints.toString(),
       };
 
+      console.log("Submitting form data:", contractFormData);
+
       if (orderType === "lend") {
         await createLoanOffer(contractFormData);
       } else {
-        // TODO: Implement createLoanRequest when backend is ready
-        console.log("Creating loan request:", contractFormData);
-        alert("Loan request functionality coming soon!");
+        await createBorrowRequest(contractFormData);
       }
 
       // Refresh balances after transaction
@@ -284,13 +322,14 @@ export default function OrderBookPage() {
       refreshCollateralBalance();
     } catch (error) {
       console.error("Failed to create order:", error);
+      alert(`Failed to create order: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   return (
     <>
       <StructuredData data={breadcrumbSchema} />
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-8">
         {/* Header */}
         <div className="border-b border-border/40 bg-card/30 backdrop-blur-sm">
           <div className="container mx-auto px-6 py-4">
@@ -351,7 +390,7 @@ export default function OrderBookPage() {
 
         {/* Main Content */}
         <div className="container mx-auto px-6 py-6">
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Left Side - Order Book */}
             <div className="xl:col-span-2">
               <OrderBook
@@ -367,7 +406,7 @@ export default function OrderBookPage() {
                 <CardContent className="p-4">
                   <Tabs
                     value={orderType}
-                    onValueChange={(value) =>
+                    onValueChange={(value: string) =>
                       setOrderType(value as "lend" | "borrow")
                     }
                   >
@@ -392,7 +431,7 @@ export default function OrderBookPage() {
               </Card>
 
               {/* Main Trading Interface */}
-              <Card className="flex-1">
+              <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center">
                     {orderType === "lend" ? (
@@ -550,12 +589,16 @@ export default function OrderBookPage() {
                         </Label>
                         <Input
                           type="number"
+                          step="1"
+                          min="1"
+                          max="365"
                           placeholder="30"
                           value={formData.duration}
                           onChange={(e) =>
                             handleInputChange("duration", e.target.value)
                           }
                           className="h-12"
+                          required
                         />
                       </div>
                     </div>
@@ -654,7 +697,7 @@ export default function OrderBookPage() {
           </div>
 
           {/* Bottom Section - Order Details */}
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="mt-8 pt-6 border-t border-border/20 grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Market Information */}
             <Card>
               <CardHeader className="pb-4">
@@ -670,7 +713,7 @@ export default function OrderBookPage() {
                   </span>
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 rounded bg-gradient-to-r from-primary to-accent" />
-                    <span className="text-sm font-medium">DreamLend</span>
+                    <span className="text-sm font-medium">neurolend</span>
                   </div>
                 </div>
                 <div className="flex justify-between">

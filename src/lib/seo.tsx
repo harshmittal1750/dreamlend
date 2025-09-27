@@ -25,17 +25,17 @@ const defaultKeywords = [
   "cryptocurrency lending platform",
   "earn interest on crypto",
   "crypto collateral loans",
-  "DreamLend Finance",
+  "neurolend Finance",
 ];
 
 const siteConfig = {
-  name: "DreamLend Finance",
+  name: "neurolend Finance",
   description:
     "The future of decentralized lending. A peer-to-peer lending platform built on Somnia L1.",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://dreamlend.finance",
+  url: process.env.NEXT_PUBLIC_SITE_URL || "https://neurolend.finance",
   ogImage: "/og-image.png",
-  twitterHandle: "@DreamlendFi",
-  creator: "DreamLend Team",
+  twitterHandle: "@neurolendFi",
+  creator: "neurolend Team",
 };
 
 export function generateSEOMetadata(config: SEOConfig): Metadata {
@@ -202,15 +202,15 @@ export const generateOrganizationSchema = () => ({
   logo: `${siteConfig.url}/logo.png`,
   description: siteConfig.description,
   sameAs: [
-    "https://twitter.com/dreamlendFi",
-    "https://x.com/DreamlendFi",
-    // "https://github.com/dreamlend",
-    // "https://discord.gg/dreamlend"
+    "https://twitter.com/neurolendFi",
+    "https://x.com/neurolendFi",
+    // "https://github.com/neurolend",
+    // "https://discord.gg/neurolend"
   ],
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "Customer Service",
-    email: "harsh@dreamlend.finance",
+    email: "harsh@neurolend.finance",
     availableLanguage: ["English"],
   },
 });

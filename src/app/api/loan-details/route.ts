@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import {
-  DREAMLEND_CONTRACT_ADDRESS,
-  DREAMLEND_ABI,
+  neurolend_CONTRACT_ADDRESS,
+  neurolend_ABI,
   SOMNIA_TESTNET_CONFIG,
 } from "@/lib/contracts";
 
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     // Create contract instance
     const provider = getProvider();
     const contract = new ethers.Contract(
-      DREAMLEND_CONTRACT_ADDRESS,
-      DREAMLEND_ABI,
+      neurolend_CONTRACT_ADDRESS,
+      neurolend_ABI,
       provider
     );
 

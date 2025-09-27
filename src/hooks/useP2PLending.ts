@@ -4,8 +4,8 @@ import { useState, useCallback, useEffect } from "react";
 import { Eip1193Provider, ethers } from "ethers";
 import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
 import {
-  DREAMLEND_CONTRACT_ADDRESS,
-  DREAMLEND_ABI,
+  neurolend_CONTRACT_ADDRESS,
+  neurolend_ABI,
   ERC20_ABI,
   Loan,
   LoanStatus,
@@ -59,9 +59,11 @@ export const useP2PLending = () => {
   });
 
   const [activeLoanOfferIds, setActiveLoanOfferIds] = useState<bigint[]>();
+  const [activeBorrowRequestIds, setActiveBorrowRequestIds] = useState<bigint[]>();
   const [lenderLoans, setLenderLoans] = useState<bigint[]>();
   const [borrowerLoans, setBorrowerLoans] = useState<bigint[]>();
   const [isLoadingOffers, setIsLoadingOffers] = useState(false);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [isLoadingLenderLoans, setIsLoadingLenderLoans] = useState(false);
   const [isLoadingBorrowerLoans, setIsLoadingBorrowerLoans] = useState(false);
 
@@ -82,8 +84,8 @@ export const useP2PLending = () => {
   const getReadContract = useCallback(() => {
     const provider = getProvider();
     return new ethers.Contract(
-      DREAMLEND_CONTRACT_ADDRESS,
-      DREAMLEND_ABI,
+      neurolend_CONTRACT_ADDRESS,
+      neurolend_ABI,
       provider
     );
   }, [getProvider]);
@@ -91,8 +93,8 @@ export const useP2PLending = () => {
   const getWriteContract = useCallback(async () => {
     const signer = await getSigner();
     return new ethers.Contract(
-      DREAMLEND_CONTRACT_ADDRESS,
-      DREAMLEND_ABI,
+      neurolend_CONTRACT_ADDRESS,
+      neurolend_ABI,
       signer
     );
   }, [getSigner]);
@@ -174,6 +176,21 @@ export const useP2PLending = () => {
       console.error("Error fetching active loan offers:", error);
     } finally {
       setIsLoadingOffers(false);
+    }
+  }, [getReadContract]);
+
+  const fetchActiveBorrowRequests = useCallback(async () => {
+    try {
+      setIsLoadingRequests(true);
+      const contract = getReadContract();
+      const requests = await contract.getActiveBorrowRequests();
+      setActiveBorrowRequestIds(
+        requests.map((id: ethers.BigNumberish) => BigInt(id.toString()))
+      );
+    } catch (error) {
+      console.error("Error fetching active borrow requests:", error);
+    } finally {
+      setIsLoadingRequests(false);
     }
   }, [getReadContract]);
 
@@ -296,7 +313,7 @@ export const useP2PLending = () => {
 
       try {
         const contract = await getERC20Contract(tokenAddress, true);
-        const tx = await contract.approve(DREAMLEND_CONTRACT_ADDRESS, amount);
+        const tx = await contract.approve(neurolend_CONTRACT_ADDRESS, amount);
         await tx.wait();
 
         setTransactionState((prev) => ({
@@ -347,12 +364,34 @@ export const useP2PLending = () => {
         if (!collateralToken)
           throw new Error("Collateral token not found in supported tokens");
 
+        // Validate form data before conversion
+        if (!formData.amount || formData.amount === "0") {
+          throw new Error("Please enter a valid loan amount");
+        }
+        if (!formData.interestRate || formData.interestRate === "0") {
+          throw new Error("Please enter a valid interest rate");
+        }
+        if (!formData.duration || formData.duration === "0") {
+          throw new Error("Please enter a valid duration");
+        }
+        if (!formData.collateralAmount || formData.collateralAmount === "0") {
+          throw new Error("Please enter a valid collateral amount");
+        }
+
         // Convert form data to contract parameters using proper decimals
         const amount = ethers.parseUnits(formData.amount, loanToken.decimals);
-        const interestRate = BigInt(formData.interestRate); // Already converted to basis points
-        const duration = BigInt(
-          Math.floor(parseFloat(formData.duration) * 24 * 60 * 60)
-        ); // Convert days to seconds
+        const interestRateValue = parseFloat(formData.interestRate);
+        if (isNaN(interestRateValue)) {
+          throw new Error("Invalid interest rate value");
+        }
+        const interestRate = BigInt(Math.floor(interestRateValue)); // Already converted to basis points
+        
+        const durationValue = parseFloat(formData.duration);
+        if (isNaN(durationValue) || durationValue <= 0) {
+          throw new Error("Invalid duration value");
+        }
+        const duration = BigInt(Math.floor(durationValue * 24 * 60 * 60)); // Convert days to seconds
+        
         const collateralAmount = ethers.parseUnits(
           formData.collateralAmount,
           collateralToken.decimals
@@ -493,6 +532,185 @@ export const useP2PLending = () => {
     ]
   );
 
+  // Create borrow request
+  const createBorrowRequest = useCallback(
+    async (formData: LoanOfferFormData) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Get token information for proper decimal handling
+        const loanToken = Object.values(SUPPORTED_TOKENS).find(
+          (token) =>
+            token.address.toLowerCase() === formData.tokenAddress.toLowerCase()
+        );
+        const collateralToken = Object.values(SUPPORTED_TOKENS).find(
+          (token) =>
+            token.address.toLowerCase() ===
+            formData.collateralAddress.toLowerCase()
+        );
+
+        if (!loanToken)
+          throw new Error("Loan token not found in supported tokens");
+        if (!collateralToken)
+          throw new Error("Collateral token not found in supported tokens");
+
+        // Validate form data before conversion
+        if (!formData.amount || formData.amount === "0") {
+          throw new Error("Please enter a valid borrow amount");
+        }
+        if (!formData.interestRate || formData.interestRate === "0") {
+          throw new Error("Please enter a valid maximum interest rate");
+        }
+        if (!formData.duration || formData.duration === "0") {
+          throw new Error("Please enter a valid duration");
+        }
+        if (!formData.collateralAmount || formData.collateralAmount === "0") {
+          throw new Error("Please enter a valid collateral amount");
+        }
+
+        // Convert form data to contract parameters using proper decimals
+        const amount = ethers.parseUnits(formData.amount, loanToken.decimals);
+        const maxInterestRateValue = parseFloat(formData.interestRate);
+        if (isNaN(maxInterestRateValue)) {
+          throw new Error("Invalid maximum interest rate value");
+        }
+        const maxInterestRate = BigInt(Math.floor(maxInterestRateValue)); // Already converted to basis points
+        
+        const durationValue = parseFloat(formData.duration);
+        if (isNaN(durationValue) || durationValue <= 0) {
+          throw new Error("Invalid duration value");
+        }
+        const duration = BigInt(Math.floor(durationValue * 24 * 60 * 60)); // Convert days to seconds
+        
+        const collateralAmount = ethers.parseUnits(
+          formData.collateralAmount,
+          collateralToken.decimals
+        );
+
+        console.log("🚨 BORROW REQUEST CREATION DEBUG:", {
+          formData: {
+            tokenAddress: formData.tokenAddress,
+            collateralAddress: formData.collateralAddress,
+          },
+          loanToken: {
+            symbol: loanToken.symbol,
+            address: loanToken.address,
+            decimals: loanToken.decimals,
+            inputAmount: formData.amount,
+            convertedAmount: amount.toString(),
+          },
+          collateralToken: {
+            symbol: collateralToken.symbol,
+            address: collateralToken.address,
+            decimals: collateralToken.decimals,
+            inputAmount: formData.collateralAmount,
+            convertedAmount: collateralAmount.toString(),
+          },
+          maxInterestRate: {
+            inputBasisPoints: formData.interestRate,
+            convertedBigInt: maxInterestRate.toString(),
+            asPercentage: `${Number(maxInterestRate) / 100}%`,
+          },
+        });
+
+        // Step 1: Approve collateral tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(formData.collateralAddress, collateralAmount);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Create borrow request
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "creating",
+        }));
+
+        // Get risk parameters for the loan pair
+        const riskParams = getRecommendedParameters(loanToken, collateralToken);
+
+        const contract = await getWriteContract();
+        const tx = await contract.createBorrowRequest(
+          formData.tokenAddress,
+          amount,
+          maxInterestRate,
+          duration,
+          formData.collateralAddress,
+          collateralAmount,
+          BigInt(riskParams.minCollateralRatio),
+          BigInt(riskParams.liquidationThreshold),
+          BigInt(riskParams.maxPriceStaleness)
+        );
+
+        console.log("Borrow request transaction submitted:", tx.hash);
+
+        // Try to wait for transaction with retries
+        try {
+          await waitForTransactionWithRetry(tx);
+
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+        } catch (waitError) {
+          console.warn("Error waiting for transaction receipt:", waitError);
+
+          // Transaction was submitted but receipt retrieval failed
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+
+          console.log("Borrow request submitted successfully. Hash:", tx.hash);
+        }
+
+        // Refetch data
+        await fetchActiveBorrowRequests();
+        await fetchBorrowerLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to create borrow request";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchActiveBorrowRequests,
+      fetchBorrowerLoans,
+      waitForTransactionWithRetry,
+    ]
+  );
+
   // Accept loan offer with two-step process
   const acceptLoanOffer = useCallback(
     async (loanId: bigint, loan: Loan) => {
@@ -560,6 +778,137 @@ export const useP2PLending = () => {
       approveToken,
       fetchActiveLoanOffers,
       fetchBorrowerLoans,
+    ]
+  );
+
+  // Accept borrow request
+  const acceptBorrowRequest = useCallback(
+    async (requestId: bigint, request: Loan, interestRate: string) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        // Get token information for proper decimal handling
+        const loanToken = Object.values(SUPPORTED_TOKENS).find(
+          (token) =>
+            token.address.toLowerCase() === request.tokenAddress.toLowerCase()
+        );
+
+        if (!loanToken)
+          throw new Error("Loan token not found in supported tokens");
+
+        // Validate interest rate
+        const interestRateValue = parseFloat(interestRate);
+        if (isNaN(interestRateValue) || interestRateValue <= 0) {
+          throw new Error("Please enter a valid interest rate");
+        }
+        if (interestRateValue > Number(request.interestRate) / 100) {
+          throw new Error("Interest rate cannot exceed the maximum requested rate");
+        }
+
+        const finalInterestRate = BigInt(Math.floor(interestRateValue * 100)); // Convert percentage to basis points
+
+        console.log("🚨 ACCEPT BORROW REQUEST DEBUG:", {
+          requestId: requestId.toString(),
+          request: {
+            borrower: request.borrower,
+            tokenAddress: request.tokenAddress,
+            amount: request.amount.toString(),
+            maxInterestRate: request.interestRate.toString(),
+          },
+          loanToken: {
+            symbol: loanToken.symbol,
+            address: loanToken.address,
+            decimals: loanToken.decimals,
+          },
+          interestRate: {
+            input: interestRate,
+            inputAsNumber: interestRateValue,
+            convertedBasisPoints: finalInterestRate.toString(),
+            maxAllowed: Number(request.interestRate) / 100,
+          },
+        });
+
+        // Step 1: Approve loan tokens
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "approving",
+        });
+
+        await approveToken(request.tokenAddress, request.amount);
+
+        // Wait a bit for the approval to be processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Step 2: Accept borrow request
+        setTransactionState((prev) => ({
+          ...prev,
+          step: "accepting",
+        }));
+
+        const contract = await getWriteContract();
+        const tx = await contract.acceptBorrowRequest(requestId, finalInterestRate);
+
+        console.log("Accept borrow request transaction submitted:", tx.hash);
+
+        // Try to wait for transaction with retries
+        try {
+          await waitForTransactionWithRetry(tx);
+
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+        } catch (waitError) {
+          console.warn("Error waiting for transaction receipt:", waitError);
+
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+
+          console.log("Borrow request accepted successfully. Hash:", tx.hash);
+        }
+
+        // Refetch data
+        await fetchActiveBorrowRequests();
+        await fetchLenderLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to accept borrow request";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [
+      address,
+      getWriteContract,
+      approveToken,
+      fetchActiveBorrowRequests,
+      fetchLenderLoans,
+      waitForTransactionWithRetry,
     ]
   );
 
@@ -738,6 +1087,58 @@ export const useP2PLending = () => {
       }
     },
     [address, getWriteContract, fetchActiveLoanOffers, fetchLenderLoans]
+  );
+
+  // Cancel borrow request
+  const cancelBorrowRequest = useCallback(
+    async (requestId: bigint) => {
+      if (!address) throw new Error("Wallet not connected");
+
+      try {
+        setTransactionState({
+          isLoading: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          hash: null,
+          step: "cancelling",
+        });
+
+        const contract = await getWriteContract();
+        const tx = await contract.cancelBorrowRequest(requestId);
+        await tx.wait();
+
+        setTransactionState({
+          isLoading: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          hash: tx.hash,
+          step: "success",
+        });
+
+        // Refetch data
+        await fetchActiveBorrowRequests();
+        await fetchBorrowerLoans();
+
+        return tx.hash;
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to cancel borrow request";
+        setTransactionState({
+          isLoading: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          hash: null,
+          step: "error",
+        });
+        throw error;
+      }
+    },
+    [address, getWriteContract, fetchActiveBorrowRequests, fetchBorrowerLoans]
   );
 
   // ============ UTILITY FUNCTIONS ============
@@ -1048,7 +1449,9 @@ export const useP2PLending = () => {
 
     // Read functions
     activeLoanOfferIds,
+    activeBorrowRequestIds,
     isLoadingOffers,
+    isLoadingRequests,
     lenderLoans,
     isLoadingLenderLoans,
     borrowerLoans,
@@ -1059,10 +1462,13 @@ export const useP2PLending = () => {
 
     // Write functions
     createLoanOffer,
+    createBorrowRequest,
     acceptLoanOffer,
+    acceptBorrowRequest,
     repayLoan,
     liquidateLoan,
     cancelLoanOffer,
+    cancelBorrowRequest,
     addCollateral,
     removeCollateral,
     makePartialRepayment,
@@ -1079,7 +1485,13 @@ export const useP2PLending = () => {
 
     // Refetch functions
     refetchOffers: fetchActiveLoanOffers,
+    refetchRequests: fetchActiveBorrowRequests,
     refetchLenderLoans: fetchLenderLoans,
     refetchBorrowerLoans: fetchBorrowerLoans,
+
+    // Direct access to contract functions for OrderBook component
+    getActiveLoanOffers: fetchActiveLoanOffers,
+    getActiveBorrowRequests: fetchActiveBorrowRequests,
+    contract: getReadContract(),
   };
 };

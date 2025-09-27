@@ -2,15 +2,15 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import {DreamLend} from "../src/DreamLend.sol";
+import {neurolend} from "../src/neurolend.sol";
 
 /**
- * @title DreamLend Deployment Script
- * @dev Deployment script for DreamLend protocol on Somnia L1 testnet
+ * @title neurolend Deployment Script
+ * @dev Deployment script for neurolend protocol on Somnia L1 testnet
  * @notice Run with: forge script script/Deploy.s.sol --rpc-url <SOMNIA_L1_TESTNET_RPC> --private-key <PRIVATE_KEY> --broadcast
  */
-contract DreamLendScript is Script {
-    DreamLend public dreamLend;
+contract neurolendScript is Script {
+    neurolend public neurolend;
 
     function setUp() public {}
 
@@ -18,13 +18,13 @@ contract DreamLendScript is Script {
         // Start broadcasting transactions
         vm.startBroadcast();
 
-        console.log("Deploying DreamLend to Somnia L1 testnet...");
+        console.log("Deploying neurolend to Somnia L1 testnet...");
         console.log("Deployer address:", msg.sender);
 
-        // Deploy DreamLend contract
-        dreamLend = new DreamLend();
+        // Deploy neurolend contract
+        neurolend = new neurolend();
 
-        console.log("DreamLend deployed to:", address(dreamLend));
+        console.log("neurolend deployed to:", address(neurolend));
         console.log("Deployment successful!");
 
         // Stop broadcasting transactions
@@ -35,7 +35,7 @@ contract DreamLendScript is Script {
      * @notice Verify deployment by checking contract address
      */
     function verifyDeployment() public view {
-        require(address(dreamLend) != address(0), "DreamLend not deployed");
-        console.log("DreamLend contract verified at:", address(dreamLend));
+        require(address(neurolend) != address(0), "neurolend not deployed");
+        console.log("neurolend contract verified at:", address(neurolend));
     }
 }

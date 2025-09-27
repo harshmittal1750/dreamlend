@@ -1,6 +1,6 @@
 /**
  * 0G Chain Configuration
- * Configuration for DreamLend on 0G Chain with Pyth Network integration
+ * Configuration for neurolend on 0G Chain with Pyth Network integration
  */
 
 // 0G Chain Network Configuration
@@ -109,9 +109,9 @@ export const ZEROG_TOKENS = {
 
 // Contract addresses on 0G Chain
 export const ZEROG_CONTRACTS = {
-  // Core DreamLend contract (updated with correct token addresses)
-  DREAMLEND:
-    process.env.NEXT_PUBLIC_DREAMLEND_ADDRESS ||
+  // Core neurolend contract (updated with correct token addresses)
+  neurolend:
+    process.env.NEXT_PUBLIC_neurolend_ADDRESS ||
     "0x064c3e0a900743D9Ac87c778d2f6d3d5819D4f23",
 
   // Pyth Network contract

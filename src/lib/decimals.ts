@@ -1,5 +1,5 @@
 /**
- * Decimal Handling Utilities for DreamLend
+ * Decimal Handling Utilities for neurolend
  *
  * Core Rule: All internal calculations, storage, and smart contract interactions
  * must use base units (wei-like). Users only see human-readable macro values.

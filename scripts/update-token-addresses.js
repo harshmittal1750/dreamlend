@@ -127,7 +127,7 @@ try {
   console.log("\n🎉 All token addresses updated successfully!");
   console.log("\n📋 Next steps:");
   console.log(
-    "1. Redeploy DreamLend contract: forge script script/Deploy.s.sol --broadcast"
+    "1. Redeploy neurolend contract: forge script script/Deploy.s.sol --broadcast"
   );
   console.log(
     "2. Mint test tokens: forge script script/MintTestTokens.s.sol --broadcast"

@@ -66,91 +66,127 @@ interface LoanRequest {
 }
 
 export function OrderBook({ selectedToken, onOrderSelect }: OrderBookProps) {
-  const { address } = useP2PLending();
+  const { 
+    address, 
+    contract, 
+    isConnected,
+    getActiveLoanOffers,
+    getActiveBorrowRequests,
+    getLoan
+  } = useP2PLending();
   const [isLoading, setIsLoading] = useState(true);
   const [loanOffers, setLoanOffers] = useState<LoanOffer[]>([]);
   const [loanRequests, setLoanRequests] = useState<LoanRequest[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Mock data for now - replace with real contract calls
+  // Fetch real data from contract
   useEffect(() => {
     const fetchOrderBookData = async () => {
+      if (!contract || !isConnected) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      try {
+        // Fetch active loan offers
+        const offerIds = await getActiveLoanOffers();
+        const offers: LoanOffer[] = [];
 
-      // Mock loan offers (asks)
-      const mockOffers: LoanOffer[] = [
-        {
-          id: "1",
-          lender: "0x1234...5678",
-          tokenAddress: "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E",
-          amount: "1000",
-          interestRate: 800, // 8.00% in basis points
-          duration: 30,
-          collateralAddress: "0x9CC1d782E6dfe5936204c3295cb430e641DcF300",
-          collateralAmount: "0.5",
-          liquidityUSD: "$1,000.00",
-          tokenInfo: getTokenByAddress(
-            "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E"
-          ),
-          collateralInfo: getTokenByAddress(
-            "0x9CC1d782E6dfe5936204c3295cb430e641DcF300"
-          ),
-        },
-        {
-          id: "2",
-          lender: "0x2345...6789",
-          tokenAddress: "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E",
-          amount: "2000",
-          interestRate: 775, // 7.75%
-          duration: 30,
-          collateralAddress: "0x9CC1d782E6dfe5936204c3295cb430e641DcF300",
-          collateralAmount: "1.0",
-          liquidityUSD: "$2,000.00",
-          tokenInfo: getTokenByAddress(
-            "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E"
-          ),
-          collateralInfo: getTokenByAddress(
-            "0x9CC1d782E6dfe5936204c3295cb430e641DcF300"
-          ),
-        },
-      ];
+        for (const offerId of offerIds) {
+          try {
+            const loan = await getLoan(offerId);
+            
+            // Only include pending loan offers (lender exists, borrower is zero address)
+            if (loan.status === 0 && loan.lender !== ethers.ZeroAddress && loan.borrower === ethers.ZeroAddress) {
+              const tokenInfo = getTokenByAddress(loan.tokenAddress);
+              const collateralInfo = getTokenByAddress(loan.collateralAddress);
+              
+              offers.push({
+                id: loan.id.toString(),
+                lender: loan.lender,
+                tokenAddress: loan.tokenAddress,
+                amount: ethers.formatUnits(loan.amount, tokenInfo?.decimals || 18),
+                interestRate: Number(loan.interestRate), // Already in basis points
+                duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+                collateralAddress: loan.collateralAddress,
+                collateralAmount: ethers.formatUnits(loan.collateralAmount, collateralInfo?.decimals || 18),
+                liquidityUSD: "$0.00", // TODO: Calculate based on token prices
+                tokenInfo,
+                collateralInfo,
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching loan ${offerId}:`, error);
+          }
+        }
 
-      // Mock loan requests (bids)
-      const mockRequests: LoanRequest[] = [
-        {
-          id: "1",
-          borrower: "0x3456...7890",
-          tokenAddress: "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E",
-          amount: "1500",
-          maxInterestRate: 600, // 6.00%
-          duration: 30,
-          collateralAddress: "0x9CC1d782E6dfe5936204c3295cb430e641DcF300",
-          collateralAmount: "0.8",
-          liquidityUSD: "$1,500.00",
-          tokenInfo: getTokenByAddress(
-            "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E"
-          ),
-          collateralInfo: getTokenByAddress(
-            "0x9CC1d782E6dfe5936204c3295cb430e641DcF300"
-          ),
-        },
-      ];
+        // Fetch active borrow requests
+        const requestIds = await getActiveBorrowRequests();
+        const requests: LoanRequest[] = [];
 
-      setLoanOffers(mockOffers);
-      setLoanRequests(mockRequests);
-      setLastUpdated(new Date());
-      setIsLoading(false);
+        for (const requestId of requestIds) {
+          try {
+            const loan = await getLoan(requestId);
+            
+            // Only include pending borrow requests (borrower exists, lender is zero address)
+            if (loan.status === 0 && loan.borrower !== ethers.ZeroAddress && loan.lender === ethers.ZeroAddress) {
+              const tokenInfo = getTokenByAddress(loan.tokenAddress);
+              const collateralInfo = getTokenByAddress(loan.collateralAddress);
+              
+              requests.push({
+                id: loan.id.toString(),
+                borrower: loan.borrower,
+                tokenAddress: loan.tokenAddress,
+                amount: ethers.formatUnits(loan.amount, tokenInfo?.decimals || 18),
+                maxInterestRate: Number(loan.interestRate), // Already in basis points
+                duration: Number(loan.duration) / (24 * 60 * 60), // Convert seconds to days
+                collateralAddress: loan.collateralAddress,
+                collateralAmount: ethers.formatUnits(loan.collateralAmount, collateralInfo?.decimals || 18),
+                liquidityUSD: "$0.00", // TODO: Calculate based on token prices
+                tokenInfo,
+                collateralInfo,
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching request ${requestId}:`, error);
+          }
+        }
+
+        // Filter by selected token if specified
+        const filteredOffers = selectedToken 
+          ? offers.filter(offer => offer.tokenInfo?.symbol === selectedToken)
+          : offers;
+          
+        const filteredRequests = selectedToken 
+          ? requests.filter(request => request.tokenInfo?.symbol === selectedToken)
+          : requests;
+
+        // Sort offers by interest rate (ascending - best rates first)
+        filteredOffers.sort((a, b) => a.interestRate - b.interestRate);
+        
+        // Sort requests by max interest rate (descending - highest rates first)
+        filteredRequests.sort((a, b) => b.maxInterestRate - a.maxInterestRate);
+
+        setLoanOffers(filteredOffers);
+        setLoanRequests(filteredRequests);
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error("Error fetching order book data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchOrderBookData();
-  }, [selectedToken]);
+  }, [selectedToken, contract, isConnected, getActiveLoanOffers, getActiveBorrowRequests, getLoan, lastUpdated]);
 
   const handleRefresh = () => {
-    // Refresh order book data
+    // Trigger a re-fetch by updating the dependency
     setLastUpdated(new Date());
+    // Force re-render by clearing data first
+    setIsLoading(true);
   };
 
   const formatRate = (basisPoints: number) => {

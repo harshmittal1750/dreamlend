@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy and Setup Mock Tokens for DreamLend Testing
+# Deploy and Setup Mock Tokens for neurolend Testing
 # Usage: ./scripts/deploy-and-setup.sh
 
 set -e
@@ -11,7 +11,7 @@ if [ -f ".env" ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-echo "🚀 Starting DreamLend Mock Token Deployment..."
+echo "🚀 Starting neurolend Mock Token Deployment..."
 
 # Check if required environment variables are set
 if [ -z "$PRIVATE_KEY" ]; then
@@ -74,21 +74,21 @@ node scripts/update-token-addresses.js \
     --marb=$MARB_ADDRESS \
     --msol=$MSOL_ADDRESS
 
-# Step 3: Redeploy DreamLend contract
+# Step 3: Redeploy neurolend contract
 echo ""
-echo "🏗️  Step 3: Redeploying DreamLend contract with updated configuration..."
+echo "🏗️  Step 3: Redeploying neurolend contract with updated configuration..."
 cd contracts
 
-DREAMLEND_OUTPUT=$(forge script script/Deploy.s.sol \
+neurolend_OUTPUT=$(forge script script/Deploy.s.sol \
     --rpc-url $RPC_URL \
     --private-key $PRIVATE_KEY \
     --broadcast \
     $VERIFY_FLAG \
     2>&1)
 
-echo "$DREAMLEND_OUTPUT"
+echo "$neurolend_OUTPUT"
 
-DREAMLEND_ADDRESS=$(echo "$DREAMLEND_OUTPUT" | grep "DreamLend deployed to:" | awk '{print $4}')
+neurolend_ADDRESS=$(echo "$neurolend_OUTPUT" | grep "neurolend deployed to:" | awk '{print $4}')
 
 cd ..
 
@@ -108,7 +108,7 @@ echo ""
 echo "🎉 Deployment completed successfully!"
 echo ""
 echo "📋 Contract Addresses:"
-echo "DreamLend: $DREAMLEND_ADDRESS"
+echo "neurolend: $neurolend_ADDRESS"
 echo "MockUSDT:  $MUSDT_ADDRESS"
 echo "MockUSDC:  $MUSDC_ADDRESS"
 echo "MockWBTC:  $MWBTC_ADDRESS"

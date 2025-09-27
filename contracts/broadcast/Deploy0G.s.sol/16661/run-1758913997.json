@@ -3,7 +3,7 @@
     {
       "hash": null,
       "transactionType": "CREATE",
-      "contractName": "DreamLend",
+      "contractName": "neurolend",
       "contractAddress": "0xf52e363c92945e350bc2515a948eb5a722d52ea6",
       "function": null,
       "arguments": null,

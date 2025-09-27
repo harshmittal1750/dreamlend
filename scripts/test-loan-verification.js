@@ -112,7 +112,7 @@ async function verifyAPIData() {
 }
 
 async function main() {
-  console.log("🚀 DreamLend Loan Verification\n");
+  console.log("🚀 neurolend Loan Verification\n");
   console.log("=====================================\n");
 
   // Check contract data

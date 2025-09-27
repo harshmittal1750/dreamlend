@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { ethers } from "ethers";
 import { TokenInfo, getTokenByAddress } from "@/config/tokens";
 import { usePythPrices } from "@/hooks/usePythPrices";
-import { DREAMLEND_ABI, DREAMLEND_CONTRACT_ADDRESS } from "@/lib/contracts";
+import { neurolend_ABI, neurolend_CONTRACT_ADDRESS } from "@/lib/contracts";
 import {
   toBaseUnit,
   fromBaseUnit,
@@ -85,7 +85,7 @@ export function useCollateralCalculation(
     return `${loanToken.address}-${collateralToken.address}`;
   }, [loanToken?.address, collateralToken?.address]);
 
-  // Fetch recommended parameters from DreamLend contract
+  // Fetch recommended parameters from neurolend contract
   useEffect(() => {
     const fetchRecommendedParams = async () => {
       if (!loanToken || !collateralToken) {
@@ -96,13 +96,13 @@ export function useCollateralCalculation(
       try {
         // console.log('Fetching recommended parameters for:', loanToken.symbol, '->', collateralToken.symbol);
         const provider = new ethers.JsonRpcProvider("https://evmrpc.0g.ai");
-        const dreamLend = new ethers.Contract(
-          DREAMLEND_CONTRACT_ADDRESS,
-          DREAMLEND_ABI,
+        const neurolend = new ethers.Contract(
+          neurolend_CONTRACT_ADDRESS,
+          neurolend_ABI,
           provider
         );
 
-        const params = await dreamLend.getRecommendedParameters(
+        const params = await neurolend.getRecommendedParameters(
           loanToken.address,
           collateralToken.address
         );

@@ -1,7 +1,7 @@
 /**
  * @file multicall.ts
  * @description Efficient price fetching utility for Somnia L1 (no multicall contract needed)
- * @author DreamLend Team
+ * @author neurolend Team
  */
 
 import { ethers } from "ethers";

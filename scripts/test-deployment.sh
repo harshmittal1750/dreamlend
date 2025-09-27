@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test deployment script for DreamLend on 0G Chain
+# Test deployment script for neurolend on 0G Chain
 # Uses a test private key for validation
 
 set -e
@@ -29,7 +29,7 @@ print_error() {
 }
 
 echo ""
-echo "🧪 DreamLend Test Deployment"
+echo "🧪 neurolend Test Deployment"
 echo "============================"
 echo ""
 

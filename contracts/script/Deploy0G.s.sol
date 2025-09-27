@@ -2,31 +2,31 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
-import "../src/DreamLend.sol";
+import "../src/neurolend.sol";
 import "../src/ZeroGConfig.sol";
 
 /**
  * @title Deploy0G
- * @dev Deployment script for DreamLend protocol on 0G Chain
+ * @dev Deployment script for neurolend protocol on 0G Chain
  */
 contract Deploy0G is Script {
     // Deployment addresses will be stored here
-    DreamLend public dreamLend;
+    neurolend public neurolend;
 
     function run() external {
         // Get deployer from msg.sender (when using --sender flag)
         address deployer = msg.sender;
 
-        console.log("Deploying DreamLend Protocol on 0G Chain...");
+        console.log("Deploying neurolend Protocol on 0G Chain...");
         console.log("Deployer address:", deployer);
         console.log("Pyth Contract Address:", ZeroGConfig.PYTH_CONTRACT);
 
         vm.startBroadcast(deployer);
 
-        // Deploy DreamLend main contract
-        console.log("\n=== Deploying DreamLend Contract ===");
-        dreamLend = new DreamLend();
-        console.log("DreamLend deployed at:", address(dreamLend));
+        // Deploy neurolend main contract
+        console.log("\n=== Deploying neurolend Contract ===");
+        neurolend = new neurolend();
+        console.log("neurolend deployed at:", address(neurolend));
 
         // Display supported tokens information
         console.log("\n=== Supported Tokens Configuration ===");
@@ -64,7 +64,7 @@ contract Deploy0G is Script {
         console.log("Deployer:", deployer);
         console.log("");
         console.log("Core Contract:");
-        console.log("- DreamLend:", address(dreamLend));
+        console.log("- neurolend:", address(neurolend));
         console.log("");
         console.log("Configuration:");
         console.log("- Pyth Contract:", ZeroGConfig.PYTH_CONTRACT);
@@ -76,7 +76,7 @@ contract Deploy0G is Script {
 
     function _saveDeploymentAddresses() internal {
         string memory deploymentInfo = string.concat(
-            "# DreamLend Protocol - 0G Chain Mainnet Deployment\n",
+            "# neurolend Protocol - 0G Chain Mainnet Deployment\n",
             "# Deployed at: ",
             vm.toString(block.timestamp),
             "\n",
@@ -84,8 +84,8 @@ contract Deploy0G is Script {
             vm.toString(block.number),
             "\n\n",
             "# Core Contract\n",
-            "DREAMLEND_ADDRESS=",
-            vm.toString(address(dreamLend)),
+            "neurolend_ADDRESS=",
+            vm.toString(address(neurolend)),
             "\n\n",
             "# Configuration\n",
             "PYTH_CONTRACT_ADDRESS=",

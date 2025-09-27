@@ -18,7 +18,7 @@ export const ZEROG_MAINNET_CONFIG = {
   pythContract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
   chainId: 16661,
   rpcUrl: "https://evmrpc.0g.ai",
-  dreamlendContract: "0x064c3e0a900743D9Ac87c778d2f6d3d5819D4f23", // Updated with correct token addresses
+  neurolendContract: "0x064c3e0a900743D9Ac87c778d2f6d3d5819D4f23", // Updated with correct token addresses
 } as const;
 
 // Supported Tokens on 0G Chain Mainnet with Pyth Network Price Feeds
