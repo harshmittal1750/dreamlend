@@ -1,4 +1,4 @@
-// Somnia L1 Testnet - Supported Tokens Configuration
+// 0G Chain Mainnet - Supported Tokens Configuration
 export interface TokenInfo {
   address: string;
   name: string;
@@ -8,72 +8,72 @@ export interface TokenInfo {
   description: string;
   category: "stablecoin" | "crypto" | "defi";
   volatilityTier: "stable" | "moderate" | "high";
-  priceFeedAddress: string;
+  pythPriceFeedId: string; // Pyth Network price feed ID
+  isAvailable: boolean; // Whether the contract actually exists on 0G Chain
+  status: "active" | "placeholder" | "pending"; // Contract deployment status
 }
 
-// DIA Oracle Addresses on Somnia Testnet
-export const SOMNIA_TESTNET_CONFIG = {
-  diaOracleV2: "0x9206296Ea3aEE3E6bdC07F7AaeF14DfCf33d865D",
-  chainId: 50312,
-  rpcUrl: "https://dream-rpc.somnia.network",
+// 0G Chain Configuration
+export const ZEROG_MAINNET_CONFIG = {
+  pythContract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  chainId: 16661,
+  rpcUrl: "https://evmrpc.0g.ai",
+  dreamlendContract: "0x064c3e0a900743D9Ac87c778d2f6d3d5819D4f23", // Updated with correct token addresses
 } as const;
 
-// ⚠️  IMPORTANT: TOKEN ADDRESSES BELOW ARE PLACEHOLDERS ⚠️
-// These addresses MUST be replaced with actual Somnia testnet token addresses before production use.
-// The addresses below match the SomniaConfig.sol placeholders for consistency.
-
-// Mock Tokens for Testing on Somnia Testnet
-// ⚠️ UPDATE ADDRESSES AFTER DEPLOYING MOCK TOKENS ⚠️
+// Supported Tokens on 0G Chain Mainnet with Pyth Network Price Feeds
 export const SUPPORTED_TOKENS: Record<string, TokenInfo> = {
-  MUSDT: {
-    address: "0x5C99fEb638C1959144696a77CC900c58A4B4EB6F", // UPDATE WITH DEPLOYED MockUSDT ADDRESS
-    name: "Mock Tether USD",
-    symbol: "MUSDT",
-    decimals: 6, // USDT typically has 6 decimals
-    description: "Mock stablecoin for testing (pegged to USD)",
-    category: "stablecoin",
-    volatilityTier: "stable",
-    priceFeedAddress: "0x67d2C2a87A17b7267a6DBb1A59575C0E9A1D1c3e", // Real USDT oracle adapter
-  },
-  MUSDC: {
-    address: "0x571D9915eA4D187b7f0b1460fd0432D7Cce74c47", // UPDATE WITH DEPLOYED MockUSDC ADDRESS
-    name: "Mock USD Coin",
-    symbol: "MUSDC",
-    decimals: 6, // USDC typically has 6 decimals
-    description: "Mock stablecoin for testing (backed by USD reserves)",
-    category: "stablecoin",
-    volatilityTier: "stable",
-    priceFeedAddress: "0x235266D5ca6f19F134421C49834C108b32C2124e", // Real USDC oracle adapter
-  },
-  MWBTC: {
-    address: "0xE218717fE38D582B8C00a8D6363f5BC7BF32a8B6", // UPDATE WITH DEPLOYED MockWBTC ADDRESS
-    name: "Mock Wrapped Bitcoin",
-    symbol: "MWBTC",
-    decimals: 8, // WBTC typically has 8 decimals
-    description: "Mock tokenized Bitcoin for testing",
+  ZG: {
+    address: "0x1Cd0690fF9a693f5EF2dD976660a8dAFc81A109c",
+    name: "0G Token",
+    symbol: "0G",
+    decimals: 18,
+    description: "Native token of the 0G Chain ecosystem",
     category: "crypto",
-    volatilityTier: "high",
-    priceFeedAddress: "0x4803db1ca3A1DA49c3DB991e1c390321c20e1f21", // Real BTC oracle adapter
-  },
-  MARB: {
-    address: "0x9c15F281BFC66D2FA26686aE2E297eD5d7f61ee1", // UPDATE WITH DEPLOYED MockARB ADDRESS
-    name: "Mock Arbitrum",
-    symbol: "MARB",
-    decimals: 18, // ARB has 18 decimals
-    description: "Mock Arbitrum ecosystem token for testing",
-    category: "defi",
     volatilityTier: "moderate",
-    priceFeedAddress: "0x74952812B6a9e4f826b2969C6D189c4425CBc19B", // Real ARB oracle adapter
+    pythPriceFeedId:
+      "0xfa9e8d4591613476ad0961732475dc08969d248faca270cc6c47efe009ea3070", // 0G/USD
+    isAvailable: true, // ✅ Contract verified to exist
+    status: "active",
   },
-  MSOL: {
-    address: "0x71264e1321E1980b32002EAF6b24759DfBA5E281", // UPDATE WITH DEPLOYED MockSOL ADDRESS
-    name: "Mock Solana",
-    symbol: "MSOL",
-    decimals: 18, // For EVM compatibility, using 18 decimals
-    description: "Mock Solana blockchain native token for testing",
+  WETH: {
+    address: "0x9CC1d782E6dfe5936204c3295cb430e641DcF300",
+    name: "Wrapped Ethereum",
+    symbol: "WETH",
+    decimals: 18,
+    description: "Wrapped Ethereum on 0G Chain",
     category: "crypto",
     volatilityTier: "high",
-    priceFeedAddress: "0xD5Ea6C434582F827303423dA21729bEa4F87D519", // Real SOL oracle adapter
+    pythPriceFeedId:
+      "0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace", // ETH/USD
+    isAvailable: true, // ✅ Verified address provided
+    status: "active",
+  },
+  wstETH: {
+    address: "0x161a128567BF0C005b58211757F7e46eed983F02",
+    name: "Wrapped Staked ETH",
+    symbol: "wstETH",
+    decimals: 18,
+    description: "Wrapped staked Ethereum (Lido) on 0G Chain",
+    category: "defi",
+    volatilityTier: "high",
+    pythPriceFeedId:
+      "0x6df640f3b8963d8f8358f791f352b8364513f6ab1cca5ed3f1f7b5448980e784", // wstETH/USD
+    isAvailable: true, // ✅ Verified address provided
+    status: "active",
+  },
+  USDC: {
+    address: "0x1f3AA82227281cA364bFb3d253B0f1af1Da6473E",
+    name: "USD Coin",
+    symbol: "USDC",
+    decimals: 6,
+    description: "USD Coin stablecoin on 0G Chain",
+    category: "stablecoin",
+    volatilityTier: "stable",
+    pythPriceFeedId:
+      "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a", // USDC/USD
+    isAvailable: true, // ✅ Verified address provided
+    status: "active",
   },
 } as const;
 
@@ -94,22 +94,22 @@ export function getAllSupportedTokens(): TokenInfo[] {
   return Object.values(SUPPORTED_TOKENS);
 }
 
-// Default collateralization parameters based on asset volatility
+// Default collateralization parameters based on asset volatility (matches ZeroGConfig.sol)
 export const DEFAULT_PARAMETERS = {
   stable: {
     minCollateralRatio: 15000, // 150%
     liquidationThreshold: 12000, // 120%
-    maxPriceStaleness: 3600, // 1 hour
+    maxPriceStaleness: 300, // 5 minutes (Pyth updates frequently)
   },
   moderate: {
     minCollateralRatio: 16500, // 165%
     liquidationThreshold: 13000, // 130%
-    maxPriceStaleness: 3600, // 1 hour
+    maxPriceStaleness: 300, // 5 minutes
   },
   high: {
     minCollateralRatio: 18000, // 180%
     liquidationThreshold: 14000, // 140%
-    maxPriceStaleness: 1800, // 30 minutes
+    maxPriceStaleness: 180, // 3 minutes for volatile assets
   },
 } as const;
 
@@ -185,10 +185,16 @@ export function basisPointsToPercentage(bps: number): number {
   return bps / 100;
 }
 
-// Get price feed address for a token
-export function getPriceFeedAddress(tokenAddress: string): string | undefined {
+// Get Pyth price feed ID for a token
+export function getPythPriceFeedId(tokenAddress: string): string | undefined {
   const token = getTokenByAddress(tokenAddress);
-  return token?.priceFeedAddress;
+  return token?.pythPriceFeedId;
+}
+
+// Get Pyth price feed ID by symbol
+export function getPythPriceFeedBySymbol(symbol: string): string | undefined {
+  const token = getTokenBySymbol(symbol);
+  return token?.pythPriceFeedId;
 }
 
 // Format duration in seconds to human readable

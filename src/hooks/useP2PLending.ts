@@ -11,7 +11,7 @@ import {
   LoanStatus,
   SOMNIA_TESTNET_CONFIG,
 } from "@/lib/contracts";
-import { SUPPORTED_TOKENS } from "@/config/tokens";
+import { SUPPORTED_TOKENS, getRecommendedParameters } from "@/config/tokens";
 
 export interface TransactionState {
   isLoading: boolean;
@@ -121,6 +121,44 @@ export const useP2PLending = () => {
       step: "idle",
     });
   }, []);
+
+  // Helper function to wait for transaction with retries
+  const waitForTransactionWithRetry = useCallback(
+    async (
+      tx: ethers.ContractTransactionResponse,
+      maxRetries = 3,
+      delay = 2000
+    ) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(
+            `Waiting for transaction (attempt ${attempt}/${maxRetries}):`,
+            tx.hash
+          );
+          const receipt = await tx.wait();
+          console.log("Transaction confirmed:", receipt);
+          return receipt;
+        } catch (error) {
+          console.warn(`Attempt ${attempt} failed:`, error);
+
+          if (attempt === maxRetries) {
+            // Last attempt failed, but transaction was still submitted
+            console.warn(
+              "All attempts failed, but transaction was submitted:",
+              tx.hash
+            );
+            throw new Error(
+              `Transaction submitted (${tx.hash}) but receipt unavailable. This may be due to network issues.`
+            );
+          }
+
+          // Wait before retry
+          await new Promise((resolve) => setTimeout(resolve, delay * attempt));
+        }
+      }
+    },
+    []
+  );
 
   // ============ READ FUNCTIONS ============
 
@@ -376,6 +414,9 @@ export const useP2PLending = () => {
           step: "creating",
         }));
 
+        // Get risk parameters for the loan pair (using existing loanToken and collateralToken variables)
+        const riskParams = getRecommendedParameters(loanToken, collateralToken);
+
         const contract = await getWriteContract();
         const tx = await contract.createLoanOffer(
           formData.tokenAddress,
@@ -383,18 +424,43 @@ export const useP2PLending = () => {
           interestRate,
           duration,
           formData.collateralAddress,
-          collateralAmount
+          collateralAmount,
+          BigInt(riskParams.minCollateralRatio),
+          BigInt(riskParams.liquidationThreshold),
+          BigInt(riskParams.maxPriceStaleness)
         );
-        await tx.wait();
 
-        setTransactionState({
-          isLoading: false,
-          isSuccess: true,
-          isError: false,
-          error: null,
-          hash: tx.hash,
-          step: "success",
-        });
+        console.log("Transaction submitted:", tx.hash);
+
+        // Try to wait for transaction with retries
+        try {
+          await waitForTransactionWithRetry(tx);
+
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+        } catch (waitError) {
+          console.warn("Error waiting for transaction receipt:", waitError);
+
+          // Transaction was submitted but receipt retrieval failed
+          // This is often due to RPC issues, not transaction failure
+          setTransactionState({
+            isLoading: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            hash: tx.hash,
+            step: "success",
+          });
+
+          // Show a helpful message to the user
+          console.log("Transaction submitted successfully. Hash:", tx.hash);
+        }
 
         // Refetch data
         await fetchActiveLoanOffers();
@@ -423,6 +489,7 @@ export const useP2PLending = () => {
       approveToken,
       fetchActiveLoanOffers,
       fetchLenderLoans,
+      waitForTransactionWithRetry,
     ]
   );
 

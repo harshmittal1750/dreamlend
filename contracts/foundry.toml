@@ -9,7 +9,8 @@ sizes = true
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "forge-std/=lib/forge-std/src/",
-    '@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/',
+    "@pythnetwork/pyth-sdk-solidity/=node_modules/@pythnetwork/pyth-sdk-solidity",
+    # '@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/',
 ]
 
 # Solidity compiler version
@@ -28,9 +29,16 @@ extra_output = ["devdoc", "userdoc"]
 # Enable FFI for advanced testing
 ffi = true
 
-# Somnia L1 Testnet Configuration
+# File system permissions for deployment scripts
+fs_permissions = [
+    { access = "read-write", path = "./deployment-0g.env" },
+    { access = "read-write", path = "./deployments/" },
+]
+
+# 0G Chain Configuration
 [rpc_endpoints]
-somnia_testnet = "https://dream-rpc.somnia.network"
+zerog_mainnet = "https://evmrpc.0g.ai"
+
 [etherscan]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

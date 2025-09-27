@@ -5,15 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./SomniaConfig.sol";
-import "./RewardsDistributor.sol";
+import "@pythnetwork/pyth-sdk-solidity/IPyth.sol";
+import "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import "./ZeroGConfig.sol";
 
 /**
  * @title DreamLend
- * @dev A decentralized lending protocol for Somnia L1 testnet
- * @notice This contract enables peer-to-peer lending with collateral backing
+ * @dev A decentralized lending protocol for 0G Chain with Pyth Network price feeds
+ * @notice This contract enables peer-to-peer lending with collateral backing using real-time Pyth prices
  */
 contract DreamLend is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -68,11 +68,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
     // Mapping to track position of loan ID in activeLoanOfferIds array for O(1) removal
     mapping(uint256 => uint256) private activeLoanOfferIndex;
 
-    // Mapping to store price feed contracts for tokens
-    mapping(address => AggregatorV3Interface) public tokenPriceFeeds;
+    // Pyth Network contract for price feeds
+    IPyth public immutable pyth;
 
-    // Rewards distributor contract for liquidity mining
-    RewardsDistributor public rewardsDistributor;
+    // Mapping to store Pyth price feed IDs for tokens
+    mapping(address => bytes32) public tokenPriceFeedIds;
 
     // ============ Events ============
 
@@ -120,15 +120,7 @@ contract DreamLend is ReentrancyGuard, Ownable {
 
     event LoanOfferRemoved(uint256 indexed loanId, string reason);
 
-    event PriceFeedSet(
-        address indexed tokenAddress,
-        address indexed feedAddress
-    );
-
-    event RewardsDistributorSet(
-        address indexed oldDistributor,
-        address indexed newDistributor
-    );
+    event PriceFeedSet(address indexed tokenAddress, bytes32 indexed feedId);
 
     event CollateralAdded(
         uint256 indexed loanId,
@@ -155,26 +147,31 @@ contract DreamLend is ReentrancyGuard, Ownable {
         uint256 timestamp
     );
 
+    event PriceUpdatePaid(
+        uint256 indexed loanId,
+        uint256 updateFee,
+        uint256 timestamp
+    );
+
     // ============ Constructor ============
 
     constructor() Ownable(msg.sender) {
+        // Initialize Pyth contract with 0G Chain address
+        pyth = IPyth(ZeroGConfig.PYTH_CONTRACT);
         _setupSupportedTokens();
     }
 
     /**
-     * @notice Initialize all supported Somnia testnet tokens and their price feeds
-     * @dev Called during contract deployment to set up USDT, USDC, BTC, ARB, SOL
+     * @notice Initialize all supported 0G Chain tokens and their Pyth price feed IDs
+     * @dev Called during contract deployment to set up supported tokens
      */
     function _setupSupportedTokens() internal {
-        (address[] memory tokens, address[] memory priceFeeds) = SomniaConfig
+        (address[] memory tokens, bytes32[] memory priceFeeds) = ZeroGConfig
             .getSupportedTokens();
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] != address(0)) {
-                // Only set up tokens that have actual addresses
-                tokenPriceFeeds[tokens[i]] = AggregatorV3Interface(
-                    priceFeeds[i]
-                );
+            if (tokens[i] != address(0) && priceFeeds[i] != bytes32(0)) {
+                tokenPriceFeedIds[tokens[i]] = priceFeeds[i];
                 emit PriceFeedSet(tokens[i], priceFeeds[i]);
             }
         }
@@ -183,36 +180,19 @@ contract DreamLend is ReentrancyGuard, Ownable {
     // ============ Administration Functions ============
 
     /**
-     * @notice Sets the price feed contract for a given ERC20 token.
-     * @dev Only callable by the contract owner.
-     * @param _tokenAddress The address of the ERC20 token (e.g., USDT, USDC).
-     * @param _feedAddress The address of the DIA AggregatorV3Interface adapter for this token.
+     * @notice Sets the Pyth price feed ID for a given ERC20 token
+     * @dev Only callable by the contract owner
+     * @param _tokenAddress The address of the ERC20 token
+     * @param _feedId The Pyth price feed ID for this token
      */
-    function setTokenPriceFeed(
+    function setTokenPriceFeedId(
         address _tokenAddress,
-        address _feedAddress
+        bytes32 _feedId
     ) external onlyOwner {
         require(_tokenAddress != address(0), "Invalid token address");
-        require(_feedAddress != address(0), "Invalid feed address");
-        tokenPriceFeeds[_tokenAddress] = AggregatorV3Interface(_feedAddress);
-        emit PriceFeedSet(_tokenAddress, _feedAddress);
-    }
-
-    /**
-     * @notice Sets the rewards distributor contract for liquidity mining
-     * @dev Only callable by the contract owner
-     * @param _distributorAddress The address of the RewardsDistributor contract
-     */
-    function setRewardsDistributor(
-        address _distributorAddress
-    ) external onlyOwner {
-        require(
-            _distributorAddress != address(0),
-            "Invalid distributor address"
-        );
-        address oldDistributor = address(rewardsDistributor);
-        rewardsDistributor = RewardsDistributor(payable(_distributorAddress));
-        emit RewardsDistributorSet(oldDistributor, _distributorAddress);
+        require(_feedId != bytes32(0), "Invalid feed ID");
+        tokenPriceFeedIds[_tokenAddress] = _feedId;
+        emit PriceFeedSet(_tokenAddress, _feedId);
     }
 
     /**
@@ -235,14 +215,14 @@ contract DreamLend is ReentrancyGuard, Ownable {
             uint256 maxStaleness
         )
     {
-        (minRatio, liquidationThreshold) = SomniaConfig.getRecommendedRatios(
+        (minRatio, liquidationThreshold) = ZeroGConfig.getRecommendedRatios(
             loanAsset,
             collateralAsset
         );
 
         // Use the more conservative staleness requirement between the two assets
-        uint256 loanStaleness = SomniaConfig.getRecommendedStaleness(loanAsset);
-        uint256 collateralStaleness = SomniaConfig.getRecommendedStaleness(
+        uint256 loanStaleness = ZeroGConfig.getRecommendedStaleness(loanAsset);
+        uint256 collateralStaleness = ZeroGConfig.getRecommendedStaleness(
             collateralAsset
         );
         maxStaleness = loanStaleness < collateralStaleness
@@ -261,8 +241,8 @@ contract DreamLend is ReentrancyGuard, Ownable {
         address collateralAsset
     ) external view returns (bool supported) {
         return
-            address(tokenPriceFeeds[loanAsset]) != address(0) &&
-            address(tokenPriceFeeds[collateralAsset]) != address(0);
+            tokenPriceFeedIds[loanAsset] != bytes32(0) &&
+            tokenPriceFeedIds[collateralAsset] != bytes32(0);
     }
 
     /**
@@ -274,13 +254,13 @@ contract DreamLend is ReentrancyGuard, Ownable {
         pure
         returns (address[] memory tokens)
     {
-        (tokens, ) = SomniaConfig.getSupportedTokens();
+        (tokens, ) = ZeroGConfig.getSupportedTokens();
     }
 
     // ============ External Functions ============
 
     /**
-     * @notice Creates a new loan offer with default oracle parameters (for testing/simple use)
+     * @notice Creates a new loan offer with default oracle parameters
      * @param _tokenAddress Address of the ERC20 token to lend
      * @param _amount Amount of tokens to lend
      * @param _interestRate Interest rate in basis points (e.g., 500 = 5%)
@@ -296,7 +276,7 @@ contract DreamLend is ReentrancyGuard, Ownable {
         address _collateralAddress,
         uint256 _collateralAmount
     ) external nonReentrant {
-        // Use recommended parameters from SomniaConfig
+        // Use recommended parameters from ZeroGConfig
         (
             uint256 minRatio,
             uint256 liquidationThreshold,
@@ -390,15 +370,13 @@ contract DreamLend is ReentrancyGuard, Ownable {
         ); // Ensure overcollateralized
         require(_maxPriceStaleness > 0, "Max price staleness must be set");
 
-        // Check if price feeds are set for both tokens (skip validation if not set for testing)
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[_tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[_collateralAddress]
-        ) != address(0);
+        // Check if Pyth price feeds are set for both tokens
+        bool hasLoanPriceFeed = tokenPriceFeedIds[_tokenAddress] != bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[_collateralAddress] !=
+            bytes32(0);
 
-        // For production loans, both price feeds must be set
-        // For testing with mock tokens, we allow creation without price feeds
+        // For production loans, both price feeds should be set
+        // For testing with unsupported tokens, we allow creation without price feeds
         if (hasLoanPriceFeed || hasCollateralPriceFeed) {
             require(hasLoanPriceFeed, "Price feed not set for loan token");
             require(
@@ -488,65 +466,120 @@ contract DreamLend is ReentrancyGuard, Ownable {
         emit LoanOfferCancelled(loanId, msg.sender, block.timestamp);
     }
 
-    // ============ Oracle Helper Functions ============
+    // ============ Pyth Oracle Helper Functions ============
 
     /**
-     * @notice Internal helper to get the latest price from a DIA AggregatorV3Interface feed.
-     * @param _feed The AggregatorV3Interface instance for the token.
-     * @param _maxStaleness The maximum acceptable age of the price update in seconds.
-     * @return price The latest price, adjusted to 18 decimals.
-     * @return isStale Boolean indicating if price is stale.
+     * @notice Get the latest price from Pyth with price update
+     * @param _feedId The Pyth price feed ID
+     * @param _maxStaleness Maximum acceptable age of the price in seconds
+     * @param _priceUpdate Encoded price update data from Pyth Hermes
+     * @return price The latest price scaled to 18 decimals
+     * @return isStale Boolean indicating if price is stale
      */
-    function _getLatestPrice(
-        AggregatorV3Interface _feed,
-        uint256 _maxStaleness
-    ) internal view returns (uint256 price, bool isStale) {
-        (
-            ,
-            /* uint80 roundId */ int256 answer,
-            ,
-            /* uint256 startedAt */ uint256 updatedAt /* uint80 answeredInRound */,
-
-        ) = _feed.latestRoundData();
-
-        require(answer > 0, "Invalid price from oracle"); // Ensure price is positive
-        require(updatedAt > 0, "Invalid timestamp from oracle"); // Ensure timestamp is set
-
-        uint256 decimals = uint256(_feed.decimals());
-
-        // Check staleness
-        if (block.timestamp - updatedAt > _maxStaleness) {
-            isStale = true;
+    function _getLatestPriceWithUpdate(
+        bytes32 _feedId,
+        uint256 _maxStaleness,
+        bytes[] calldata _priceUpdate
+    ) internal returns (uint256 price, bool isStale) {
+        // Update price feeds if update data is provided
+        if (_priceUpdate.length > 0) {
+            uint256 updateFee = pyth.getUpdateFee(_priceUpdate);
+            require(
+                msg.value >= updateFee,
+                "Insufficient fee for price update"
+            );
+            pyth.updatePriceFeeds{value: updateFee}(_priceUpdate);
         }
 
-        // Adjust price to 18 decimals for consistent calculations
-        if (decimals < 18) {
-            price = uint256(answer) * (10 ** (18 - decimals));
-        } else if (decimals > 18) {
-            price = uint256(answer) / (10 ** (decimals - 18));
+        // Get the current price
+        PythStructs.Price memory pythPrice = pyth.getPriceNoOlderThan(
+            _feedId,
+            _maxStaleness
+        );
+
+        // Check if price is stale (this should not happen if getPriceNoOlderThan succeeds)
+        isStale = false;
+
+        // Convert price to 18 decimals
+        // Pyth prices have a configurable exponent, typically negative
+        int32 expo = pythPrice.expo;
+        int64 priceValue = pythPrice.price;
+
+        require(priceValue > 0, "Invalid price from Pyth oracle");
+
+        if (expo >= 0) {
+            // Positive exponent: multiply by 10^expo then scale to 18 decimals
+            price =
+                uint256(uint64(priceValue)) *
+                (10 ** uint256(int256(expo))) *
+                (10 ** 18);
         } else {
-            price = uint256(answer);
+            // Negative exponent: divide by 10^(-expo) then scale to 18 decimals
+            uint256 divisor = 10 ** uint256(int256(-expo));
+            price = (uint256(uint64(priceValue)) * (10 ** 18)) / divisor;
         }
     }
 
     /**
-     * @notice Calculates the current collateralization ratio for a given loan.
-     * @param loanId The ID of the loan.
-     * @return currentCollateralRatio The ratio in basis points (e.g., 15000 for 150%).
-     * @return priceStale True if any required oracle price is stale.
+     * @notice Get the latest price from Pyth without update (view function)
+     * @param _feedId The Pyth price feed ID
+     * @param _maxStaleness Maximum acceptable age of the price in seconds
+     * @return price The latest price scaled to 18 decimals
+     * @return isStale Boolean indicating if price is stale
+     */
+    function _getLatestPrice(
+        bytes32 _feedId,
+        uint256 _maxStaleness
+    ) internal view returns (uint256 price, bool isStale) {
+        try pyth.getPriceNoOlderThan(_feedId, _maxStaleness) returns (
+            PythStructs.Price memory pythPrice
+        ) {
+            isStale = false;
+
+            // Convert price to 18 decimals
+            int32 expo = pythPrice.expo;
+            int64 priceValue = pythPrice.price;
+
+            require(priceValue > 0, "Invalid price from Pyth oracle");
+
+            if (expo >= 0) {
+                price =
+                    uint256(uint64(priceValue)) *
+                    (10 ** uint256(int256(expo))) *
+                    (10 ** 18);
+            } else {
+                uint256 divisor = 10 ** uint256(int256(-expo));
+                price = (uint256(uint64(priceValue)) * (10 ** 18)) / divisor;
+            }
+        } catch {
+            // Price is too stale or feed doesn't exist
+            isStale = true;
+            price = 0;
+        }
+    }
+
+    /**
+     * @notice Calculates the current collateralization ratio for a given loan
+     * @param loanId The ID of the loan
+     * @return currentCollateralRatio The ratio in basis points (e.g., 15000 for 150%)
+     * @return priceStale True if any required oracle price is stale
      */
     function _getCollateralizationRatio(
         uint256 loanId
     ) internal view returns (uint256 currentCollateralRatio, bool priceStale) {
         Loan storage loan = loans[loanId];
 
+        // Get Pyth feed IDs
+        bytes32 collateralFeedId = tokenPriceFeedIds[loan.collateralAddress];
+        bytes32 loanTokenFeedId = tokenPriceFeedIds[loan.tokenAddress];
+
         // Get prices for collateral and loan tokens
         (uint256 collateralPrice, bool collateralStale) = _getLatestPrice(
-            tokenPriceFeeds[loan.collateralAddress],
+            collateralFeedId,
             loan.maxPriceStaleness
         );
         (uint256 loanTokenPrice, bool tokenStale) = _getLatestPrice(
-            tokenPriceFeeds[loan.tokenAddress],
+            loanTokenFeedId,
             loan.maxPriceStaleness
         );
 
@@ -583,7 +616,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
         }
 
         // Calculate value of collateral and loan in USD (18 decimals)
-        // Both amounts are now properly scaled to 18 decimals
         uint256 collateralValue = (scaledCollateralAmount * collateralPrice) /
             (10 ** 18);
         uint256 loanValue = (scaledLoanAmount * loanTokenPrice) / (10 ** 18);
@@ -598,25 +630,56 @@ contract DreamLend is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Accepts an existing loan offer
+     * @notice Accepts an existing loan offer with price update
      * @param loanId The ID of the loan offer to accept
+     * @param priceUpdate Encoded price update data from Pyth Hermes
      */
-    function acceptLoanOffer(uint256 loanId) external nonReentrant {
+    function acceptLoanOffer(
+        uint256 loanId,
+        bytes[] calldata priceUpdate
+    ) external payable nonReentrant {
         // Verify loan exists and is in pending status
         Loan storage loan = loans[loanId];
         require(loan.id != 0, "Loan does not exist");
         require(loan.status == LoanStatus.Pending, "Loan is not pending");
         require(msg.sender != loan.lender, "Lender cannot accept own loan");
 
-        // Check if price feeds are available for collateral ratio calculation
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[loan.collateralAddress]
-        ) != address(0);
+        // Check if Pyth price feeds are available for collateral ratio calculation
+        bool hasLoanPriceFeed = tokenPriceFeedIds[loan.tokenAddress] !=
+            bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[
+            loan.collateralAddress
+        ] != bytes32(0);
+
+        // Initialize updateFee
+        uint256 updateFee = 0;
 
         // Only validate collateral ratio if both price feeds are available
-        if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+        if (
+            hasLoanPriceFeed && hasCollateralPriceFeed && priceUpdate.length > 0
+        ) {
+            // Update prices and validate collateral ratio
+            bytes32 collateralFeedId = tokenPriceFeedIds[
+                loan.collateralAddress
+            ];
+            bytes32 loanTokenFeedId = tokenPriceFeedIds[loan.tokenAddress];
+
+            // Create feed ID array for the update
+            bytes32[] memory feedIds = new bytes32[](2);
+            feedIds[0] = collateralFeedId;
+            feedIds[1] = loanTokenFeedId;
+
+            // Update prices
+            updateFee = pyth.getUpdateFee(priceUpdate);
+            require(
+                msg.value >= updateFee,
+                "Insufficient fee for price update"
+            );
+            pyth.updatePriceFeeds{value: updateFee}(priceUpdate);
+
+            emit PriceUpdatePaid(loanId, updateFee, block.timestamp);
+
+            // Validate collateral ratio with fresh prices
             (
                 uint256 currentRatio,
                 bool priceStale
@@ -643,13 +706,7 @@ contract DreamLend is ReentrancyGuard, Ownable {
         loan.startTime = block.timestamp;
         loan.status = LoanStatus.Active;
 
-        // Start rewards for both lender and borrower if rewards distributor is set
-        if (address(rewardsDistributor) != address(0)) {
-            rewardsDistributor.startAccruingRewards(loan.lender, loan.amount);
-            rewardsDistributor.startAccruingRewards(msg.sender, loan.amount);
-        }
-
-        // Remove from active loan offers array (gas efficient swap and pop)
+        // Remove from active loan offers array
         _removeLoanFromActiveOffers(loanId);
 
         // Add to borrower's loan mapping
@@ -666,6 +723,20 @@ contract DreamLend is ReentrancyGuard, Ownable {
             block.timestamp,
             eventCollateralRatio
         );
+
+        // Refund excess ETH
+        if (msg.value > updateFee) {
+            payable(msg.sender).transfer(msg.value - updateFee);
+        }
+    }
+
+    /**
+     * @notice Accepts an existing loan offer without price update (for testing)
+     * @param loanId The ID of the loan offer to accept
+     */
+    function acceptLoanOffer(uint256 loanId) external nonReentrant {
+        bytes[] memory emptyUpdate = new bytes[](0);
+        this.acceptLoanOffer{value: 0}(loanId, emptyUpdate);
     }
 
     /**
@@ -683,17 +754,10 @@ contract DreamLend is ReentrancyGuard, Ownable {
         uint256 timeElapsed = block.timestamp - loan.startTime;
 
         // Use 365.25 days for more accurate year calculation (accounting for leap years)
-        // Reorder operations to prevent overflow: (amount * rate / basis_points) * time / seconds_per_year
         uint256 annualizedAmount = (loan.amount * loan.interestRate) / 10000;
         uint256 interest = (annualizedAmount * timeElapsed) / 31557600; // 365.25 * 24 * 60 * 60 = 31557600 seconds per year
 
         uint256 totalRepayment = loan.amount + interest;
-
-        // Stop rewards for both lender and borrower BEFORE changing loan status
-        if (address(rewardsDistributor) != address(0)) {
-            rewardsDistributor.stopAccruingRewards(loan.lender, loan.amount);
-            rewardsDistributor.stopAccruingRewards(loan.borrower, loan.amount);
-        }
 
         // Transfer repayment from borrower to lender
         IERC20(loan.tokenAddress).safeTransferFrom(
@@ -749,11 +813,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
 
         // Calculate new collateral ratio (if price feeds available)
         uint256 newCollateralRatio = 0;
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[loan.collateralAddress]
-        ) != address(0);
+        bool hasLoanPriceFeed = tokenPriceFeedIds[loan.tokenAddress] !=
+            bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[
+            loan.collateralAddress
+        ] != bytes32(0);
 
         if (hasLoanPriceFeed && hasCollateralPriceFeed) {
             (newCollateralRatio, ) = _getCollateralizationRatio(loanId);
@@ -773,11 +837,13 @@ contract DreamLend is ReentrancyGuard, Ownable {
      * @notice Allows borrower to remove collateral from an active loan (if health factor allows)
      * @param loanId The ID of the loan to remove collateral from
      * @param removeAmount Amount of collateral to remove
+     * @param priceUpdate Encoded price update data from Pyth Hermes
      */
     function removeCollateral(
         uint256 loanId,
-        uint256 removeAmount
-    ) external nonReentrant {
+        uint256 removeAmount,
+        bytes[] calldata priceUpdate
+    ) external payable nonReentrant {
         // Verify loan exists and is active
         Loan storage loan = loans[loanId];
         require(loan.id != 0, "Loan does not exist");
@@ -792,15 +858,27 @@ contract DreamLend is ReentrancyGuard, Ownable {
             "Cannot remove more than available collateral"
         );
 
-        // Check if price feeds are available for collateral ratio calculation
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[loan.collateralAddress]
-        ) != address(0);
+        // Check if Pyth price feeds are available for collateral ratio calculation
+        bool hasLoanPriceFeed = tokenPriceFeedIds[loan.tokenAddress] !=
+            bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[
+            loan.collateralAddress
+        ] != bytes32(0);
+
+        uint256 updateFee = 0;
 
         // If price feeds are available, ensure removal won't violate minimum collateral ratio
         if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+            // Update prices if update data provided
+            if (priceUpdate.length > 0) {
+                updateFee = pyth.getUpdateFee(priceUpdate);
+                require(
+                    msg.value >= updateFee,
+                    "Insufficient fee for price update"
+                );
+                pyth.updatePriceFeeds{value: updateFee}(priceUpdate);
+            }
+
             // Temporarily reduce collateral to check new ratio
             uint256 originalCollateral = loan.collateralAmount;
             loan.collateralAmount -= removeAmount;
@@ -839,6 +917,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
             newCollateralRatio,
             block.timestamp
         );
+
+        // Refund excess ETH
+        if (msg.value > updateFee) {
+            payable(msg.sender).transfer(msg.value - updateFee);
+        }
     }
 
     /**
@@ -885,18 +968,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
 
         // If fully repaid, return collateral and mark as repaid
         if (newRemainingAmount == 0) {
-            // Stop rewards for both lender and borrower BEFORE changing loan status
-            if (address(rewardsDistributor) != address(0)) {
-                rewardsDistributor.stopAccruingRewards(
-                    loan.lender,
-                    loan.amount
-                );
-                rewardsDistributor.stopAccruingRewards(
-                    loan.borrower,
-                    loan.amount
-                );
-            }
-
             // Return collateral to borrower
             IERC20(loan.collateralAddress).safeTransfer(
                 msg.sender,
@@ -927,10 +998,14 @@ contract DreamLend is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Liquidates a defaulted loan (can be called by anyone after default)
+     * @notice Liquidates a defaulted loan with price update
      * @param loanId The ID of the loan to liquidate
+     * @param priceUpdate Encoded price update data from Pyth Hermes
      */
-    function liquidateLoan(uint256 loanId) external nonReentrant {
+    function liquidateLoan(
+        uint256 loanId,
+        bytes[] calldata priceUpdate
+    ) external payable nonReentrant {
         // Verify loan exists and is active
         Loan storage loan = loans[loanId];
         require(loan.id != 0, "Loan does not exist");
@@ -941,18 +1016,30 @@ contract DreamLend is ReentrancyGuard, Ownable {
         bool priceDefaulted = false;
 
         // Check for price-based default only if price feeds are available
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[loan.collateralAddress]
-        ) != address(0);
+        bool hasLoanPriceFeed = tokenPriceFeedIds[loan.tokenAddress] !=
+            bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[
+            loan.collateralAddress
+        ] != bytes32(0);
+
+        uint256 updateFee = 0;
 
         if (hasLoanPriceFeed && hasCollateralPriceFeed) {
+            // Update prices if update data provided
+            if (priceUpdate.length > 0) {
+                updateFee = pyth.getUpdateFee(priceUpdate);
+                require(
+                    msg.value >= updateFee,
+                    "Insufficient fee for price update"
+                );
+                pyth.updatePriceFeeds{value: updateFee}(priceUpdate);
+            }
+
             (
                 uint256 currentRatio,
                 bool priceStale
             ) = _getCollateralizationRatio(loanId);
-            require(!priceStale, "Oracle prices are too stale to liquidate"); // Prevent liquidation with stale prices
+            require(!priceStale, "Oracle prices are too stale to liquidate");
             priceDefaulted = currentRatio < loan.liquidationThresholdBPS;
         }
 
@@ -960,12 +1047,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
             timeDefaulted || priceDefaulted,
             "Loan has not defaulted yet (time or price)"
         );
-
-        // Stop rewards for both lender and borrower BEFORE changing loan status
-        if (address(rewardsDistributor) != address(0)) {
-            rewardsDistributor.stopAccruingRewards(loan.lender, loan.amount);
-            rewardsDistributor.stopAccruingRewards(loan.borrower, loan.amount);
-        }
 
         // Calculate liquidator fee and remaining collateral for lender
         uint256 liquidatorFee = (loan.collateralAmount * LIQUIDATION_FEE_BPS) /
@@ -997,7 +1078,14 @@ contract DreamLend is ReentrancyGuard, Ownable {
             liquidatorFee,
             block.timestamp
         );
+
+        // Refund excess ETH
+        if (msg.value > updateFee) {
+            payable(msg.sender).transfer(msg.value - updateFee);
+        }
     }
+
+    // ============ View Functions ============
 
     /**
      * @notice Returns all active loan offer IDs
@@ -1045,8 +1133,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
     function getActiveLoanOffersCount() external view returns (uint256) {
         return activeLoanOfferIds.length;
     }
-
-    // ============ View Functions ============
 
     /**
      * @notice Gets loan details by ID
@@ -1169,8 +1255,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
         return borrowerLoans[borrower].length;
     }
 
-    // ============ View Functions (Additional) ============
-
     /**
      * @notice Checks if a loan exists
      * @param loanId The loan ID to check
@@ -1226,11 +1310,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
         bool priceDefaulted = false;
 
         // Check for price-based default only if price feeds are available
-        bool hasLoanPriceFeed = address(tokenPriceFeeds[loan.tokenAddress]) !=
-            address(0);
-        bool hasCollateralPriceFeed = address(
-            tokenPriceFeeds[loan.collateralAddress]
-        ) != address(0);
+        bool hasLoanPriceFeed = tokenPriceFeedIds[loan.tokenAddress] !=
+            bytes32(0);
+        bool hasCollateralPriceFeed = tokenPriceFeedIds[
+            loan.collateralAddress
+        ] != bytes32(0);
 
         if (hasLoanPriceFeed && hasCollateralPriceFeed) {
             (
@@ -1238,7 +1322,6 @@ contract DreamLend is ReentrancyGuard, Ownable {
                 bool priceStale
             ) = _getCollateralizationRatio(loanId);
             if (!priceStale) {
-                // Only consider price default if prices are not stale
                 priceDefaulted = currentRatio < loan.liquidationThresholdBPS;
             }
         }
@@ -1279,10 +1362,10 @@ contract DreamLend is ReentrancyGuard, Ownable {
     }
 
     /**
-     * @notice Gets the current health factor (collateralization ratio) of an active loan.
-     * @param loanId The ID of the loan.
-     * @return currentRatio The current collateralization ratio in basis points.
-     * @return priceStale True if any required oracle price is stale.
+     * @notice Gets the current health factor (collateralization ratio) of an active loan
+     * @param loanId The ID of the loan
+     * @return currentRatio The current collateralization ratio in basis points
+     * @return priceStale True if any required oracle price is stale
      */
     function getLoanHealthFactor(
         uint256 loanId
@@ -1292,6 +1375,34 @@ contract DreamLend is ReentrancyGuard, Ownable {
         require(loan.status == LoanStatus.Active, "Loan is not active");
 
         return _getCollateralizationRatio(loanId);
+    }
+
+    /**
+     * @notice Get the fee required to update price feeds
+     * @param priceUpdate Encoded price update data from Pyth Hermes
+     * @return updateFee The fee required in wei
+     */
+    function getUpdateFee(
+        bytes[] calldata priceUpdate
+    ) external view returns (uint256 updateFee) {
+        return pyth.getUpdateFee(priceUpdate);
+    }
+
+    /**
+     * @notice Get current price for a token without updating
+     * @param tokenAddress The token address
+     * @param maxStaleness Maximum acceptable age in seconds
+     * @return price Current price in USD (18 decimals)
+     * @return isStale Whether the price is stale
+     */
+    function getCurrentPrice(
+        address tokenAddress,
+        uint256 maxStaleness
+    ) external view returns (uint256 price, bool isStale) {
+        bytes32 feedId = tokenPriceFeedIds[tokenAddress];
+        require(feedId != bytes32(0), "Price feed not set for token");
+
+        return _getLatestPrice(feedId, maxStaleness);
     }
 
     // ============ Internal Functions ============
@@ -1330,4 +1441,11 @@ contract DreamLend is ReentrancyGuard, Ownable {
             emit LoanOfferRemoved(loanId, "Loan accepted or cancelled");
         }
     }
+
+    // ============ Receive Function ============
+
+    /**
+     * @notice Allow contract to receive ETH for price update fees
+     */
+    receive() external payable {}
 }

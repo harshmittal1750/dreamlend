@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConnectButton } from "@/components/ConnectButton";
-import { FaucetDropdown } from "@/components/FaucetDropdown";
+// import { FaucetDropdown } from "@/components/FaucetDropdown";
 import { useP2PLending } from "@/hooks/useP2PLending";
 import { useRewards } from "@/hooks/useRewards";
 import {
@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Gift,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -41,6 +42,11 @@ export function Navigation() {
       href: "/",
       label: "Home",
       icon: Home,
+    },
+    {
+      href: "/orderbook",
+      label: "Order Book",
+      icon: BookOpen,
     },
     {
       href: "/create",
@@ -94,7 +100,7 @@ export function Navigation() {
                 variant="secondary"
                 className="text-xs px-2 py-0.5 bg-primary/10 text-primary border-primary/20 font-medium"
               >
-                Somnia L1
+                0G Chain
               </Badge>
             </div>
           </Link>
@@ -184,9 +190,6 @@ export function Navigation() {
             )} */}
 
             {/* Faucet Button */}
-            <div className="hidden md:block">
-              <FaucetDropdown />
-            </div>
 
             {/* Connect Button */}
             <div className="hidden md:block">
@@ -251,7 +254,6 @@ export function Navigation() {
 
               {/* Mobile Faucet and Connect Buttons */}
               <div className="pt-4 border-t border-border/50 space-y-2">
-                <FaucetDropdown />
                 <ConnectButton />
               </div>
             </div>

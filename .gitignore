@@ -42,3 +42,4 @@ next-env.d.ts
 create_loan.sh
 contracts/script/create_loan.sh
 contracts/script/enhanced_create_loans.sh
+contracts/node_modules/@pythnetwork

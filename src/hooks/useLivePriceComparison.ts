@@ -6,7 +6,7 @@
 
 import React, { useState, useCallback, useMemo, useRef } from "react";
 import { ProcessedLoan } from "./useSubgraphQuery";
-import { getTokenByAddress, getPriceFeedAddress } from "@/config/tokens";
+import { getTokenByAddress, getPythPriceFeedId } from "@/config/tokens";
 import { multicall, MulticallUtil, PriceData } from "@/lib/multicall";
 
 // Enhanced loan data with price comparison
@@ -99,7 +99,7 @@ export function useLivePriceComparison(
     return MulticallUtil.getUniquePriceFeeds(
       Array.from(tokenAddresses),
       (tokenAddress: string) => {
-        return getPriceFeedAddress(tokenAddress);
+        return getPythPriceFeedId(tokenAddress);
       }
     );
   }, [loans.map((l) => `${l.tokenAddress}-${l.collateralAddress}`).join(",")]);
